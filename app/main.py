@@ -11,7 +11,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from pipeline.collect_kosha import TARGET_STATIONS, fetch_realtime_temperature
 from pipeline.collect_redtide import fetch_redtide_info, filter_target_region
 from pipeline.db import insert_readings
-from pipeline.risk import classify_all_stations
+from pipeline.risk import SPECIES_THRESHOLDS, classify_all_stations
 
 LAYER_LABELS = {"1": "표층", "2": "중층", "3": "저층"}
 LEVEL_BADGES = {
@@ -36,8 +36,8 @@ def load_temperature_data() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=1800)
-def load_risk_data() -> pd.DataFrame:
-    results = classify_all_stations(list(TARGET_STATIONS.keys()))
+def load_risk_data(species: str) -> pd.DataFrame:
+    results = classify_all_stations(list(TARGET_STATIONS.keys()), species=species)
     df = pd.DataFrame(results)
     df["region"] = df["sta_cde"].map(TARGET_STATIONS)
     df["badge"] = df["level"].map(LEVEL_BADGES)
@@ -60,6 +60,10 @@ st.info(
     icon="ℹ️",
 )
 
+selected_species = st.selectbox("양식 어종 선택 (어종별 임계온도 반영)", list(SPECIES_THRESHOLDS.keys()))
+if selected_species in ("굴", "참돔"):
+    st.caption("⚠️ 이 어종은 신뢰할 만한 폐사 임계수온 자료를 찾지 못해 일반 기준을 그대로 적용 중입니다.")
+
 try:
     temp_df = load_temperature_data()
 except Exception as e:
@@ -67,7 +71,7 @@ except Exception as e:
     temp_df = pd.DataFrame()
 
 try:
-    risk_df = load_risk_data()
+    risk_df = load_risk_data(selected_species)
 except Exception as e:
     st.error(f"위험도를 계산하지 못했습니다: {e}")
     risk_df = pd.DataFrame()

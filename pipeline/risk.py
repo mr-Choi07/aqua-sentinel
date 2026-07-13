@@ -7,8 +7,21 @@
   1) 즉시 트리거: 이미 관측 수온이 28℃ 이상이면 예측 없이 바로 위험 신호
   2) 단기 추세 예측: 최근 관측 이력에 선형회귀를 적용해 72시간 뒤 수온을 추정
 
-주의: 이 값은 공식 특보를 대체하지 않는 보조 지표다. 어종별 내성 온도가
-다르므로(TODO) 지금은 모든 어종에 동일한 임계값을 적용한다.
+주의: 이 값은 공식 특보를 대체하지 않는 보조 지표다.
+
+어종별 임계온도(SPECIES_THRESHOLDS)는 아래 근거로 작성했다. 굴·참돔은 신뢰할 만한
+개체별 폐사 임계수온 자료를 찾지 못해 일반 기준(기본값)을 그대로 쓴다 — 실제
+서비스에 쓰려면 국립수산과학원에 직접 문의해서 검증할 것(TODO).
+
+  - 우럭(조피볼락): 생존 한계 28℃ 안팎, 28℃ 초과 시 피해 발생
+    (헤럴드경제, https://mbiz.heraldcorp.com/article/10560683)
+  - 멍게: 20℃부터 대사·섭식 저하, 26℃ 이상 지속 시 폐사("녹아내림")
+    (경남신문 창간특집, https://m.knnews.co.kr/mView.php?gubun=plan&idxno=1454848)
+  - 전복: 24~25℃ 이상에서 폐사 확률 급증
+    (경향신문, https://www.khan.co.kr/article/202501262007005)
+  - 굴: 고수온 자체보다 동반되는 빈산소수괴가 주된 폐사 원인이라 순수 수온
+    임계치 근거를 찾지 못함 — 일반 기준 사용
+  - 참돔: 구체적 폐사 임계수온 자료를 찾지 못함 — 일반 기준 사용
 """
 
 import sys
@@ -22,13 +35,23 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from pipeline.db import get_recent_readings
 
-WARNING_TEMP = 26.0  # 관심 단계 진입 온도
-ALERT_TEMP = 28.0  # 주의 단계 즉시 트리거 온도 (공식 주의보 기준과 동일)
-ALERT_DURATION_DAYS = 3  # 이 일수 이상 연속으로 ALERT_TEMP 이상이면 경보
+WARNING_TEMP = 26.0  # 일반(기본) 관심 단계 진입 온도
+ALERT_TEMP = 28.0  # 일반(기본) 주의 단계 즉시 트리거 온도 (공식 주의보 기준과 동일)
+ALERT_DURATION_DAYS = 3  # 이 일수 이상 연속으로 alert 온도 이상이면 경보
 PROJECTION_HOURS = 72  # 추세 예측 범위
 HISTORY_WINDOW_HOURS = 24 * 7  # 추이 계산에 사용할 이력 조회 범위 (7일)
 
 RISK_LEVELS = ["정상", "관심", "주의", "경보", "데이터 부족"]
+
+# 어종별 관심/주의(경보 트리거) 임계온도(℃). 근거는 모듈 docstring 참고.
+SPECIES_THRESHOLDS = {
+    "일반(기본)": {"warning": WARNING_TEMP, "alert": ALERT_TEMP},
+    "우럭(조피볼락)": {"warning": 26.0, "alert": 28.0},
+    "멍게": {"warning": 20.0, "alert": 26.0},
+    "전복": {"warning": 22.0, "alert": 24.0},
+    "굴": {"warning": WARNING_TEMP, "alert": ALERT_TEMP},
+    "참돔": {"warning": WARNING_TEMP, "alert": ALERT_TEMP},
+}
 
 
 def _parse_observed_at(observed_at: str) -> datetime:
@@ -74,13 +97,18 @@ def _project_temperature(readings: list[tuple[str, float]], hours_ahead: float) 
     return float(intercept + slope * target_x)
 
 
-def classify_station_risk(sta_cde: str, obs_lay: str = "1") -> dict:
-    """관측소·수심층 하나에 대한 위험도를 산출한다."""
+def classify_station_risk(sta_cde: str, obs_lay: str = "1", species: str = "일반(기본)") -> dict:
+    """관측소·수심층 하나에 대한 위험도를 어종별 임계온도 기준으로 산출한다."""
+    thresholds = SPECIES_THRESHOLDS.get(species, SPECIES_THRESHOLDS["일반(기본)"])
+    warning_temp = thresholds["warning"]
+    alert_temp = thresholds["alert"]
+
     readings = get_recent_readings(sta_cde, obs_lay, hours=HISTORY_WINDOW_HOURS)
 
     if not readings:
         return {
             "sta_cde": sta_cde,
+            "species": species,
             "level": "데이터 부족",
             "current_temp": None,
             "predicted_temp_72h": None,
@@ -89,19 +117,19 @@ def classify_station_risk(sta_cde: str, obs_lay: str = "1") -> dict:
         }
 
     current_temp = readings[-1][1]
-    consecutive_days = _consecutive_days_above(readings, ALERT_TEMP)
+    consecutive_days = _consecutive_days_above(readings, alert_temp)
     predicted_temp = _project_temperature(readings, PROJECTION_HOURS)
 
     if consecutive_days >= ALERT_DURATION_DAYS:
         level = "경보"
-        reason = f"{ALERT_TEMP}℃ 이상이 {consecutive_days}일 연속 관측됨"
-    elif current_temp >= ALERT_TEMP:
+        reason = f"{alert_temp}℃ 이상이 {consecutive_days}일 연속 관측됨"
+    elif current_temp >= alert_temp:
         level = "주의"
-        reason = f"현재 수온 {current_temp:.1f}℃로 {ALERT_TEMP}℃ 이상"
-    elif current_temp >= WARNING_TEMP:
+        reason = f"현재 수온 {current_temp:.1f}℃로 {alert_temp}℃ 이상"
+    elif current_temp >= warning_temp:
         level = "관심"
-        reason = f"현재 수온 {current_temp:.1f}℃로 {WARNING_TEMP}℃ 이상"
-    elif predicted_temp is not None and predicted_temp >= ALERT_TEMP:
+        reason = f"현재 수온 {current_temp:.1f}℃로 {warning_temp}℃ 이상"
+    elif predicted_temp is not None and predicted_temp >= alert_temp:
         level = "관심"
         reason = f"추세상 {PROJECTION_HOURS}시간 내 {predicted_temp:.1f}℃ 도달 예상"
     else:
@@ -110,6 +138,7 @@ def classify_station_risk(sta_cde: str, obs_lay: str = "1") -> dict:
 
     return {
         "sta_cde": sta_cde,
+        "species": species,
         "level": level,
         "current_temp": current_temp,
         "predicted_temp_72h": predicted_temp,
@@ -118,5 +147,7 @@ def classify_station_risk(sta_cde: str, obs_lay: str = "1") -> dict:
     }
 
 
-def classify_all_stations(station_codes: list[str], obs_lay: str = "1") -> list[dict]:
-    return [classify_station_risk(code, obs_lay) for code in station_codes]
+def classify_all_stations(
+    station_codes: list[str], obs_lay: str = "1", species: str = "일반(기본)"
+) -> list[dict]:
+    return [classify_station_risk(code, obs_lay, species) for code in station_codes]
