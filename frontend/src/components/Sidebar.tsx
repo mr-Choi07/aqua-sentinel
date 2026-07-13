@@ -1,13 +1,24 @@
 import { useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronUp, Waves } from "lucide-react";
+import type { RiskResult } from "../api";
 
 interface Props {
   species: string[];
   selectedSpecies: string;
   onSelectSpecies: (s: string) => void;
+  stations: RiskResult[];
+  selectedStation: string;
+  onSelectStation: (sta_cde: string) => void;
 }
 
-export default function Sidebar({ species, selectedSpecies, onSelectSpecies }: Props) {
+export default function Sidebar({
+  species,
+  selectedSpecies,
+  onSelectSpecies,
+  stations,
+  selectedStation,
+  onSelectStation,
+}: Props) {
   const [expanded, setExpanded] = useState(false);
   const isWeakEvidence = selectedSpecies === "굴" || selectedSpecies === "참돔";
 
@@ -60,6 +71,28 @@ export default function Sidebar({ species, selectedSpecies, onSelectSpecies }: P
           이 어종은 폐사 임계수온 근거가 부족해 일반 기준을 적용 중입니다.
         </p>
       )}
+
+      <label
+        className="mt-5 block text-xs font-semibold uppercase tracking-wide mb-2"
+        style={{ color: "var(--text-muted)" }}
+      >
+        내 어장 (관측소)
+      </label>
+      <select
+        className="w-full rounded-lg border px-3 py-2.5 text-sm font-medium"
+        style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+        value={selectedStation}
+        onChange={(e) => onSelectStation(e.target.value)}
+      >
+        {stations.map((s) => (
+          <option key={s.sta_cde} value={s.sta_cde}>
+            {s.region}
+          </option>
+        ))}
+      </select>
+      <p className="mt-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+        AI 코치·신고서·적조 영향 판단에 사용됩니다.
+      </p>
 
       <div className="mt-6 rounded-lg p-3" style={{ background: "var(--surface-2)" }}>
         <button

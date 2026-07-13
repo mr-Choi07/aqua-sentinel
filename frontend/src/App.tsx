@@ -49,6 +49,7 @@ type Tab = (typeof TABS)[number]["label"];
 export default function App() {
   const [species, setSpecies] = useState<string[]>([]);
   const [selectedSpecies, setSelectedSpecies] = useState("일반(기본)");
+  const [selectedStation, setSelectedStation] = useState<string>("");
   const [activeTab, setActiveTab] = useState<Tab>("위험도 현황");
 
   const [temperature, setTemperature] = useState<TemperatureReading[]>([]);
@@ -69,8 +70,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    fetchRisk(selectedSpecies).then(setRisk).catch((e) => setError(String(e)));
+    fetchRisk(selectedSpecies)
+      .then((list) => {
+        setRisk(list);
+        if (!selectedStation && list.length > 0) setSelectedStation(list[0].sta_cde);
+      })
+      .catch((e) => setError(String(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSpecies]);
+
+  const selectedRisk = risk.find((r) => r.sta_cde === selectedStation) ?? null;
 
   const surfaceReadings = temperature.filter((t) => t.obs_lay_label === "표층");
   const avgSurfaceTemp =
@@ -85,7 +94,14 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen" style={{ background: "var(--page)" }}>
-      <Sidebar species={species} selectedSpecies={selectedSpecies} onSelectSpecies={setSelectedSpecies} />
+      <Sidebar
+        species={species}
+        selectedSpecies={selectedSpecies}
+        onSelectSpecies={setSelectedSpecies}
+        stations={risk}
+        selectedStation={selectedStation}
+        onSelectStation={setSelectedStation}
+      />
 
       <main className="flex-1 p-8">
         <header className="mb-6">
@@ -133,9 +149,13 @@ export default function App() {
         >
           {activeTab === "위험도 현황" && <RiskTab data={risk} />}
           {activeTab === "수온 상세" && <TemperatureTab data={temperature} />}
-          {activeTab === "적조 속보" && <RedtideTab data={redtide} />}
-          {activeTab === "AI 대응 코치" && <CoachTab riskData={risk} species={selectedSpecies} />}
-          {activeTab === "피해 신고서" && <ReportTab riskData={risk} species={selectedSpecies} />}
+          {activeTab === "적조 속보" && <RedtideTab data={redtide} stations={risk} selectedStation={selectedStation} />}
+          {activeTab === "AI 대응 코치" && (
+            <CoachTab selectedRisk={selectedRisk} species={selectedSpecies} />
+          )}
+          {activeTab === "피해 신고서" && (
+            <ReportTab selectedRisk={selectedRisk} species={selectedSpecies} />
+          )}
         </div>
       </main>
     </div>

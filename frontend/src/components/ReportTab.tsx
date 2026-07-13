@@ -1,15 +1,14 @@
 import { useRef, useState } from "react";
-import { CheckCircle2, ImagePlus, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ImagePlus, X } from "lucide-react";
 import type { RiskResult } from "../api";
 import { submitDamageReport } from "../api";
 
 interface Props {
-  riskData: RiskResult[];
+  selectedRisk: RiskResult | null;
   species: string;
 }
 
-export default function ReportTab({ riskData, species }: Props) {
-  const [station, setStation] = useState(riskData[0]?.sta_cde ?? "");
+export default function ReportTab({ selectedRisk, species }: Props) {
   const [owner, setOwner] = useState("");
   const [farmName, setFarmName] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
@@ -19,10 +18,10 @@ export default function ReportTab({ riskData, species }: Props) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (riskData.length === 0) {
+  if (!selectedRisk) {
     return (
       <p style={{ color: "var(--text-secondary)" }}>
-        위험도 데이터가 없어 보고서를 생성할 수 없습니다.
+        위험도 데이터가 없어 신고서 초안을 생성할 수 없습니다.
       </p>
     );
   }
@@ -34,6 +33,7 @@ export default function ReportTab({ riskData, species }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!selectedRisk) return;
     if (!photo) {
       setError("사진을 업로드해주세요.");
       return;
@@ -43,7 +43,7 @@ export default function ReportTab({ riskData, species }: Props) {
     setPdfUrl(null);
     try {
       const blob = await submitDamageReport({
-        sta_cde: station || riskData[0].sta_cde,
+        sta_cde: selectedRisk.sta_cde,
         species,
         owner,
         farm_name: farmName,
@@ -59,28 +59,27 @@ export default function ReportTab({ riskData, species }: Props) {
 
   return (
     <div className="max-w-lg">
-      <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-        실제 신고 서식이 아니며, 신고 준비를 돕는 참고 자료입니다. 호출 시에만 Claude API를
-        사용합니다.
+      <div
+        className="mb-4 flex items-start gap-2 rounded-lg p-3 text-xs leading-relaxed"
+        style={{ background: "rgba(250,178,25,0.12)", color: "#8a5c00" }}
+      >
+        <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+        <span>
+          본 자료는 AI가 생성한 <strong>초안</strong>이며, 실제 신고·보험 청구 시 공식 서식과
+          기관 확인이 필요합니다. AI는 사진에서 관찰되는 소견만 서술할 뿐, 보상 여부나 금액을
+          판단하지 않습니다.
+        </span>
+      </div>
+
+      <p
+        className="text-sm mb-4 rounded-lg p-3"
+        style={{ background: "var(--surface-2)", color: "var(--text-secondary)" }}
+      >
+        대상 어장: <strong style={{ color: "var(--text-primary)" }}>{selectedRisk.region}</strong>
+        {" · "}어종: {species} {" · "}호출 시에만 Claude API를 사용합니다.
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1.5">관측소</label>
-          <select
-            className="w-full rounded-lg border px-3 py-2.5 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
-            value={station}
-            onChange={(e) => setStation(e.target.value)}
-          >
-            {riskData.map((r) => (
-              <option key={r.sta_cde} value={r.sta_cde}>
-                {r.region}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div>
           <label className="block text-sm font-medium mb-1.5">어업인명</label>
           <input
@@ -154,7 +153,7 @@ export default function ReportTab({ riskData, species }: Props) {
           className="w-fit rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           style={{ background: "var(--accent)", boxShadow: "var(--shadow-sm)" }}
         >
-          {loading ? "사진 분석 및 보고서 생성 중..." : "보고서 생성"}
+          {loading ? "사진 분석 및 초안 생성 중..." : "신고서 초안 생성"}
         </button>
       </form>
 
@@ -169,7 +168,7 @@ export default function ReportTab({ riskData, species }: Props) {
             style={{ color: "var(--good)" }}
           >
             <CheckCircle2 size={18} />
-            보고서가 생성되었습니다
+            초안이 생성되었습니다
           </span>
           <a
             href={pdfUrl}
