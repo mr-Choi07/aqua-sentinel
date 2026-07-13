@@ -8,6 +8,7 @@ import streamlit as st
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+from pipeline.coach import generate_coaching_message
 from pipeline.collect_kosha import TARGET_STATIONS, fetch_realtime_temperature
 from pipeline.collect_redtide import fetch_redtide_info, filter_target_region
 from pipeline.db import insert_readings
@@ -111,6 +112,26 @@ else:
         use_container_width=True,
         hide_index=True,
     )
+
+st.subheader("AI 대응 코치")
+st.caption("호출 시에만 Claude API를 사용합니다 (자동 호출 없음).")
+if risk_df.empty:
+    st.info("위험도 데이터가 없어 코치를 호출할 수 없습니다.")
+else:
+    station_options = dict(zip(risk_df["region"], risk_df["sta_cde"]))
+    selected_region = st.selectbox("코치를 요청할 관측소 선택", list(station_options.keys()))
+    if st.button("대응 코치에게 물어보기"):
+        selected_row = risk_df[risk_df["sta_cde"] == station_options[selected_region]].iloc[0]
+        with st.spinner("Claude Haiku 4.5 호출 중..."):
+            try:
+                message = generate_coaching_message(
+                    risk_result=selected_row.to_dict(),
+                    species=selected_species,
+                    region=selected_region,
+                )
+                st.markdown(message)
+            except Exception as e:
+                st.error(f"대응 코치 호출 실패: {e}")
 
 st.subheader("실시간 수온 현황 (전체 관측층)")
 if temp_df.empty:
