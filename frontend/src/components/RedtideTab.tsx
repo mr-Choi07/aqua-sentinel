@@ -6,6 +6,21 @@ interface Props {
   selectedStation: string;
 }
 
+// 국립수산과학원 적조속보 원문은 학명(라틴어)만 표기한다. 국내 언론·기관 자료에서
+// 통용되는 한글 표기로 옮긴다 — 생물학적 국명이 별도로 표준화되어 있진 않아 학명을
+// 소리나는 대로 옮긴 것이다. 매핑에 없는 학명은 원문 그대로 보여준다.
+const SPECIES_KOREAN_NAME: Record<string, string> = {
+  "Akashiwo sanguinea": "아카시와 상귀니아",
+  "Karenia mikimotoi": "카레니아 미키모토이",
+  "Cochlodinium polykrikoides": "코클로디니움 폴리크리코이데스",
+  "Scrippsiella sp.": "스크립셀라",
+  "Scrippsiella trochoidea": "스크립셀라",
+};
+
+function speciesLabel(latinName: string): string {
+  return SPECIES_KOREAN_NAME[latinName] ?? latinName;
+}
+
 // 통영시 관할 읍·면 지명은 적조속보 원문에 "통영" 대신 이렇게 표기되는 경우가 있어
 // (예: "산양읍 장군봉 내만") 시군명만으로 매칭하면 놓친다. 알고 있는 관측소 지명은
 // 문자열 일치로 함께 매칭한다. 위경도 기반 정밀 반경 계산이 아닌 텍스트 근사치다.
@@ -102,8 +117,8 @@ export default function RedtideTab({ data, stations, selectedStation }: Props) {
                   <ImpactBadge affected={affected} />
                 </td>
                 <td className="p-3 font-medium">{row.day_report}</td>
-                <td className="p-3 italic" style={{ color: "var(--text-secondary)" }}>
-                  {row.nam_biology}
+                <td className="p-3" style={{ color: "var(--text-secondary)" }} title={row.nam_biology}>
+                  {speciesLabel(row.nam_biology)}
                 </td>
                 <td className="p-3">{row.txt_seas}</td>
                 <td className="p-3 text-right tabular-nums">

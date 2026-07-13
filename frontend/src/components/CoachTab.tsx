@@ -52,9 +52,6 @@ export default function CoachTab({ selectedRisk, species }: Props) {
         <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
           <span className="font-semibold">{selectedRisk.region}</span>
           <span style={{ color: "var(--text-secondary)" }}>어종: {species}</span>
-          <span style={{ color: "var(--text-secondary)" }}>
-            현재 수온: {selectedRisk.current_temp?.toFixed(1) ?? "-"}℃
-          </span>
           <Badge level={selectedRisk.level} />
         </div>
         <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -68,7 +65,7 @@ export default function CoachTab({ selectedRisk, species }: Props) {
         className="w-fit rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         style={{ background: "var(--accent)", boxShadow: "var(--shadow-sm)" }}
       >
-        {loading ? "Claude Haiku 4.5 호출 중..." : "이 어장 대응 코치에게 물어보기"}
+        {loading ? "Claude Haiku 4.5 호출 중..." : "대응 방법 물어보기"}
       </button>
 
       {error && <p style={{ color: "var(--critical)" }}>{error}</p>}
