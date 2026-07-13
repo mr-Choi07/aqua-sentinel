@@ -11,6 +11,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from pipeline.coach import generate_coaching_message
 from pipeline.collect_kosha import TARGET_STATIONS, fetch_realtime_temperature
 from pipeline.collect_redtide import fetch_redtide_info, filter_target_region
+from pipeline.damage_report import analyze_damage_photo, build_damage_report
 from pipeline.db import insert_readings
 from pipeline.risk import SPECIES_THRESHOLDS, classify_all_stations
 
@@ -177,3 +178,53 @@ else:
         use_container_width=True,
         hide_index=True,
     )
+
+st.subheader("피해 상황 정리 보고서 (초안 생성)")
+st.caption(
+    "실제 신고 서식이 아니며, 신고 준비를 돕는 참고 자료입니다. "
+    "호출 시에만 Claude API를 사용합니다."
+)
+with st.form("damage_report_form"):
+    owner_name = st.text_input("어업인명")
+    farm_name = st.text_input("어장명")
+    uploaded_photo = st.file_uploader("폐사 사진 업로드", type=["jpg", "jpeg", "png", "webp"])
+    submitted = st.form_submit_button("보고서 생성")
+
+if submitted:
+    if uploaded_photo is None:
+        st.warning("사진을 업로드해주세요.")
+    elif risk_df.empty:
+        st.warning("위험도 데이터가 없어 보고서를 생성할 수 없습니다.")
+    else:
+        scratch_dir = Path(__file__).resolve().parent.parent / "data" / "_uploads"
+        scratch_dir.mkdir(parents=True, exist_ok=True)
+        photo_path = scratch_dir / uploaded_photo.name
+        with open(photo_path, "wb") as f:
+            f.write(uploaded_photo.getbuffer())
+
+        selected_row = risk_df[risk_df["region"] == selected_region].iloc[0]
+        with st.spinner("사진 분석 및 보고서 생성 중..."):
+            try:
+                ai_analysis = analyze_damage_photo(
+                    str(photo_path), species=selected_species, region=selected_region
+                )
+                output_path = scratch_dir.parent / f"damage_report_{uploaded_photo.name}.pdf"
+                build_damage_report(
+                    output_path=str(output_path),
+                    farm_info={
+                        "owner": owner_name,
+                        "farm_name": farm_name,
+                        "region": selected_region,
+                        "species": selected_species,
+                    },
+                    risk_context=selected_row.to_dict(),
+                    ai_analysis=ai_analysis,
+                    photo_path=str(photo_path),
+                )
+                st.success("보고서가 생성되었습니다.")
+                with open(output_path, "rb") as f:
+                    st.download_button(
+                        "PDF 다운로드", f, file_name="damage_report.pdf", mime="application/pdf"
+                    )
+            except Exception as e:
+                st.error(f"보고서 생성 실패: {e}")
