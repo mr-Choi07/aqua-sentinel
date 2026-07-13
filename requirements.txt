@@ -1,0 +1,17 @@
+# 대시보드/UI
+streamlit>=1.38
+
+# 데이터 처리
+pandas>=2.2
+
+# 공공데이터포털 API 연동
+requests>=2.32
+
+# Anthropic API (RAG 대응 코치 + 멀티모달 폐사 사진 분석)
+anthropic>=0.34
+
+# 신고서 PDF 생성
+fpdf2>=2.7
+
+# 환경변수 관리
+python-dotenv>=1.0
