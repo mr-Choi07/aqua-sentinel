@@ -1,26 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --surface: #fcfcfb;
-  --page: #f9f9f7;
+  --surface: #ffffff;
+  --surface-2: #f3f2ee;
+  --page: #f4f3ee;
   --text-primary: #0b0b0b;
   --text-secondary: #52514e;
   --text-muted: #898781;
   --border: #e1e0d9;
+  --accent: #2a78d6;
+  --accent-2: #1baf7a;
   --good: #0ca30c;
   --warning: #fab219;
   --serious: #ec835a;
   --critical: #d03b3b;
+  --shadow-sm: 0 1px 2px rgba(11, 11, 11, 0.05), 0 1px 3px rgba(11, 11, 11, 0.06);
+  --shadow-md: 0 4px 10px rgba(11, 11, 11, 0.06), 0 2px 4px rgba(11, 11, 11, 0.05);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --surface: #1a1a19;
-    --page: #0d0d0d;
+    --surface: #1f1f1e;
+    --surface-2: #262625;
+    --page: #121212;
     --text-primary: #ffffff;
     --text-secondary: #c3c2b7;
     --text-muted: #898781;
-    --border: #2c2c2a;
+    --border: #33332f;
+    --accent: #3987e5;
+    --accent-2: #199e70;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 }
 
@@ -33,4 +43,13 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--page);
   color: var(--text-primary);
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+tbody tr:hover {
+  background: var(--surface-2);
 }

@@ -60,8 +60,8 @@ export default function ReportTab({ riskData, species }: Props) {
         <div>
           <label className="block text-sm font-medium mb-1.5">관측소</label>
           <select
-            className="w-full rounded-md border px-3 py-2 text-sm bg-transparent"
-            style={{ borderColor: "var(--border)" }}
+            className="w-full rounded-lg border px-3 py-2.5 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
             value={station}
             onChange={(e) => setStation(e.target.value)}
           >
@@ -76,8 +76,8 @@ export default function ReportTab({ riskData, species }: Props) {
         <div>
           <label className="block text-sm font-medium mb-1.5">어업인명</label>
           <input
-            className="w-full rounded-md border px-3 py-2 text-sm bg-transparent"
-            style={{ borderColor: "var(--border)" }}
+            className="w-full rounded-lg border px-3 py-2.5 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
             value={owner}
             onChange={(e) => setOwner(e.target.value)}
           />
@@ -86,8 +86,8 @@ export default function ReportTab({ riskData, species }: Props) {
         <div>
           <label className="block text-sm font-medium mb-1.5">어장명</label>
           <input
-            className="w-full rounded-md border px-3 py-2 text-sm bg-transparent"
-            style={{ borderColor: "var(--border)" }}
+            className="w-full rounded-lg border px-3 py-2.5 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
             value={farmName}
             onChange={(e) => setFarmName(e.target.value)}
           />
@@ -106,8 +106,8 @@ export default function ReportTab({ riskData, species }: Props) {
         <button
           type="submit"
           disabled={loading}
-          className="w-fit rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          style={{ background: "#2a78d6" }}
+          className="w-fit rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{ background: "var(--accent)", boxShadow: "var(--shadow-sm)" }}
         >
           {loading ? "사진 분석 및 보고서 생성 중..." : "보고서 생성"}
         </button>
@@ -115,16 +115,22 @@ export default function ReportTab({ riskData, species }: Props) {
 
       {error && <p className="mt-3" style={{ color: "var(--critical)" }}>{error}</p>}
       {pdfUrl && (
-        <p className="mt-4">
+        <div
+          className="mt-4 flex items-center justify-between rounded-lg p-4"
+          style={{ background: "color-mix(in srgb, var(--good) 10%, transparent)" }}
+        >
+          <span className="text-sm font-medium" style={{ color: "var(--good)" }}>
+            ✅ 보고서가 생성되었습니다
+          </span>
           <a
             href={pdfUrl}
             download="damage_report.pdf"
-            className="underline text-sm font-medium"
-            style={{ color: "var(--good)" }}
+            className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
+            style={{ background: "var(--good)" }}
           >
-            ✅ 보고서가 생성되었습니다 — PDF 다운로드
+            PDF 다운로드
           </a>
-        </p>
+        </div>
       )}
     </div>
   );

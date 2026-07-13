@@ -42,8 +42,8 @@ export default function CoachTab({ riskData, species }: Props) {
       <div>
         <label className="block text-sm font-medium mb-1.5">관측소 선택</label>
         <select
-          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent"
-          style={{ borderColor: "var(--border)" }}
+          className="w-full rounded-lg border px-3 py-2.5 text-sm"
+          style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
           value={station}
           onChange={(e) => setSelectedStation(e.target.value)}
         >
@@ -58,8 +58,8 @@ export default function CoachTab({ riskData, species }: Props) {
       <button
         onClick={handleAsk}
         disabled={loading}
-        className="w-fit rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        style={{ background: "#2a78d6" }}
+        className="w-fit rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        style={{ background: "var(--accent)", boxShadow: "var(--shadow-sm)" }}
       >
         {loading ? "Claude Haiku 4.5 호출 중..." : "대응 코치에게 물어보기"}
       </button>
@@ -67,8 +67,8 @@ export default function CoachTab({ riskData, species }: Props) {
       {error && <p style={{ color: "var(--critical)" }}>{error}</p>}
       {message && (
         <div
-          className="rounded-lg border p-4 text-sm whitespace-pre-wrap leading-relaxed"
-          style={{ borderColor: "var(--border)" }}
+          className="rounded-lg p-4 text-sm whitespace-pre-wrap leading-relaxed"
+          style={{ background: "var(--surface-2)" }}
         >
           {message}
         </div>

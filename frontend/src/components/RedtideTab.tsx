@@ -10,10 +10,16 @@ export default function RedtideTab({ data }: { data: RedtideBulletin[] }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border" style={{ borderColor: "var(--border)" }}>
+    <div
+      className="overflow-hidden overflow-x-auto rounded-lg border"
+      style={{ borderColor: "var(--border)" }}
+    >
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b text-left" style={{ borderColor: "var(--border)" }}>
+          <tr
+            className="text-left text-xs font-semibold uppercase tracking-wide"
+            style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}
+          >
             <th className="p-3">속보일자</th>
             <th className="p-3">원인생물</th>
             <th className="p-3">조사해역</th>
@@ -25,11 +31,13 @@ export default function RedtideTab({ data }: { data: RedtideBulletin[] }) {
           {data.map((row, i) => (
             <tr
               key={`${row.cod_news}-${i}`}
-              className="border-b last:border-0"
+              className="border-t"
               style={{ borderColor: "var(--border)" }}
             >
-              <td className="p-3">{row.day_report}</td>
-              <td className="p-3 italic">{row.nam_biology}</td>
+              <td className="p-3 font-medium">{row.day_report}</td>
+              <td className="p-3 italic" style={{ color: "var(--text-secondary)" }}>
+                {row.nam_biology}
+              </td>
               <td className="p-3">{row.txt_seas}</td>
               <td className="p-3 text-right tabular-nums">
                 {row.min_watertemp}~{row.max_watertemp}℃

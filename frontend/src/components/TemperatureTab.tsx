@@ -25,10 +25,16 @@ export default function TemperatureTab({ data }: { data: TemperatureReading[] })
         </ResponsiveContainer>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border" style={{ borderColor: "var(--border)" }}>
+      <div
+        className="overflow-hidden overflow-x-auto rounded-lg border"
+        style={{ borderColor: "var(--border)" }}
+      >
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left" style={{ borderColor: "var(--border)" }}>
+            <tr
+              className="text-left text-xs font-semibold uppercase tracking-wide"
+              style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}
+            >
               <th className="p-3">지역</th>
               <th className="p-3">관측소</th>
               <th className="p-3">수심층</th>
@@ -40,10 +46,10 @@ export default function TemperatureTab({ data }: { data: TemperatureReading[] })
             {sorted.map((row, i) => (
               <tr
                 key={`${row.sta_cde}-${row.obs_lay}-${i}`}
-                className="border-b last:border-0"
+                className="border-t"
                 style={{ borderColor: "var(--border)" }}
               >
-                <td className="p-3">{row.region}</td>
+                <td className="p-3 font-medium">{row.region}</td>
                 <td className="p-3">{row.sta_nam_kor}</td>
                 <td className="p-3">{row.obs_lay_label}</td>
                 <td className="p-3 text-right tabular-nums">{row.wtr_tmp.toFixed(1)}</td>

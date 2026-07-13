@@ -9,8 +9,14 @@ const LEVEL_STYLES: Record<string, { color: string; icon: string }> = {
 export default function Badge({ level }: { level: string }) {
   const style = LEVEL_STYLES[level] ?? LEVEL_STYLES["데이터 부족"];
   return (
-    <span className="inline-flex items-center gap-1.5 text-sm font-medium">
-      <span style={{ color: style.color }}>{style.icon}</span>
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+      style={{
+        background: `color-mix(in srgb, ${style.color} 14%, transparent)`,
+        color: style.color,
+      }}
+    >
+      <span>{style.icon}</span>
       {level}
     </span>
   );
