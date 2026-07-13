@@ -26,6 +26,7 @@ from pathlib import Path
 import anthropic
 from dotenv import load_dotenv
 from fpdf import FPDF
+from pydantic import BaseModel, Field
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
@@ -36,16 +37,34 @@ MODEL = "claude-haiku-4-5"
 KOREAN_FONT_REGULAR = "C:/Windows/Fonts/malgun.ttf"
 KOREAN_FONT_BOLD = "C:/Windows/Fonts/malgunbd.ttf"
 
+# "피해물량"과 "피해원인"은 원 서식에서 서로 다른 칸이라, 하나의 서술문을 두 칸에
+# 그대로 복사하면 안 된다 — 구조화 출력으로 각각 다른 값을 받는다. 마크다운(#, **)은
+# PDF에 그대로 문자로 찍혀버리므로 쓰지 말라고 명시한다.
 ANALYSIS_SYSTEM_PROMPT = """당신은 양식 어업 피해 사진을 검토하는 보조 도구입니다.
-사진에서 관찰되는 소견(폐사 개체 수 추정, 외관상 특징, 사육 환경 상태 등)을 객관적으로
-서술하세요. 폐사 원인을 단정적으로 진단하지 말고, "고수온/적조로 추정됨" 같은 표현으로
-가능성만 언급하세요. 최종 원인 판정은 전문가 확인이 필요하다는 점을 답변 끝에 명시하세요.
-3~5문장으로 간결하게 작성하세요."""
+사진에서 관찰되는 내용을 객관적으로 서술하되, 폐사 원인을 단정적으로 진단하지 말고
+가능성만 언급하세요. 최종 원인 판정은 전문가 확인이 필요합니다.
+마크다운 문법(#, **, - 등)을 쓰지 말고 일반 텍스트로만 작성하세요."""
+
+
+class PhotoAnalysis(BaseModel):
+    quantity_estimate: str = Field(
+        description="사진에서 추정되는 폐사 개체 수(예: '수백 마리 이상 추정', '정확한 수량 추정 불가'). "
+        "한 문장 이내."
+    )
+    cause_estimate: str = Field(
+        description="추정 가능한 폐사 원인(예: '고수온 또는 적조로 추정'). 단정적 진단 금지, "
+        "전문가 확인 필요 문구 포함. 한 문장 이내."
+    )
+    full_observation: str = Field(
+        description="사진에서 관찰되는 전체 소견(외관상 특징, 사육 환경 상태 등). 3~5문장, "
+        "마크다운 문법 사용 금지."
+    )
+
 
 # 관측 위험도가 "정상"인데 사진 소견에 대량 폐사를 시사하는 표현이 있으면 불일치로
 # 간주한다. 키워드 매칭 휴리스틱이라 정교하지 않다 — 없다고 피해가 없는 것도, 있다고
 # 반드시 심각한 것도 아니다(docs/damage_report_template.md 5장 참고).
-MASS_MORTALITY_KEYWORDS = ["대량", "다수", "폐사체", "떼죽음", "집단 폐사"]
+MASS_MORTALITY_KEYWORDS = ["대량", "다수", "폐사체", "떼죽음", "집단 폐사", "수백", "수천"]
 
 
 def get_client() -> anthropic.Anthropic:
@@ -68,14 +87,14 @@ def _guess_media_type(image_path: str) -> str:
     }.get(ext, "image/jpeg")
 
 
-def analyze_damage_photo(image_path: str, species: str, region: str) -> str:
-    """폐사 사진을 분석해 소견 텍스트를 반환한다."""
+def analyze_damage_photo(image_path: str, species: str, region: str) -> PhotoAnalysis:
+    """폐사 사진을 분석해 수량 추정/원인 추정/전체 소견을 구조화된 형태로 반환한다."""
     client = get_client()
 
     with open(image_path, "rb") as f:
         image_data = base64.standard_b64encode(f.read()).decode("utf-8")
 
-    response = client.messages.create(
+    response = client.messages.parse(
         model=MODEL,
         max_tokens=512,
         system=ANALYSIS_SYSTEM_PROMPT,
@@ -98,15 +117,17 @@ def analyze_damage_photo(image_path: str, species: str, region: str) -> str:
                 ],
             }
         ],
+        output_format=PhotoAnalysis,
     )
-    return next((block.text for block in response.content if block.type == "text"), "")
+    return response.parsed_output
 
 
-def detect_inconsistency(risk_level: str, ai_analysis: str) -> bool:
+def detect_inconsistency(risk_level: str, analysis: PhotoAnalysis) -> bool:
     """관측 위험도가 정상인데 사진 소견이 대량 폐사를 시사하면 True를 반환한다."""
     if risk_level != "정상":
         return False
-    return any(keyword in (ai_analysis or "") for keyword in MASS_MORTALITY_KEYWORDS)
+    combined = f"{analysis.quantity_estimate} {analysis.full_observation}"
+    return any(keyword in combined for keyword in MASS_MORTALITY_KEYWORDS)
 
 
 class _ReportPDF(FPDF):
@@ -159,7 +180,7 @@ def build_damage_report(
     output_path: str,
     farm_info: dict,
     risk_context: dict,
-    ai_analysis: str,
+    ai_analysis: PhotoAnalysis,
     photo_path: str | None = None,
 ) -> str:
     """피해 상황 정리 보고서를 PDF로 생성한다.
@@ -174,6 +195,7 @@ def build_damage_report(
         "species": str,
     }
     risk_context: {"level": str, "current_temp": float, "reason": str}
+    ai_analysis: analyze_damage_photo()가 반환한 PhotoAnalysis
     """
     pdf = _ReportPDF()
     _register_fonts(pdf)
@@ -204,10 +226,10 @@ def build_damage_report(
     _field(pdf, "양식 어종", farm_info.get("species"))
     _field(pdf, "양식 면적(ha)", farm_info.get("farm_area_ha"))
     _field(pdf, "어업면허/신고번호", farm_info.get("license_no"))
-    _field(pdf, "피해물량-신고(AI)", ai_analysis or "-")
+    _field(pdf, "피해물량-신고(AI)", ai_analysis.quantity_estimate)
     _official_only_field(pdf, "피해물량-확정")
     _official_only_field(pdf, "피해 구분")
-    _field(pdf, "피해 원인(AI)", ai_analysis or "-")
+    _field(pdf, "피해 원인(AI)", ai_analysis.cause_estimate)
     pdf.ln(4)
 
     _section_title(pdf, "3. 관측 데이터 기반 판단")
@@ -217,7 +239,7 @@ def build_damage_report(
     pdf.ln(4)
 
     _section_title(pdf, "4. 사진 기반 AI 소견")
-    pdf.multi_cell(PAGE_CONTENT_WIDTH, 7, ai_analysis or "-")
+    pdf.multi_cell(PAGE_CONTENT_WIDTH, 7, ai_analysis.full_observation or "-")
     pdf.set_x(pdf.l_margin)
     pdf.ln(4)
 
