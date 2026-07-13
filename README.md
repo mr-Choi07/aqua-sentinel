@@ -37,52 +37,52 @@
 
 ## 4. 기술 스택
 
-- **Python 3.11+**
-- **Streamlit** — 대시보드/UI
+- **Python 3.11+ / FastAPI** — 백엔드 API (pipeline/ 로직을 REST로 노출)
+- **React + TypeScript + Vite + Tailwind CSS** — 프론트엔드 대시보드
 - **SQLite** — 초기 DB (추후 필요 시 Postgres 전환 가능하도록 설계)
 - **pandas** — 시계열 데이터 처리
 - **requests** — 공공데이터포털 API 연동
-- **Anthropic API** — RAG 기반 대응 코치, 멀티모달 폐사 사진 분석
+- **Anthropic API (Claude Haiku 4.5)** — 대응 코치, 멀티모달 폐사 사진 분석
 - **fpdf2** — 신고서 PDF 생성
 
 ## 5. 폴더 구조
 
 ```
 aqua-sentinel/
-├── app/            # Streamlit 대시보드 앱 코드
-├── pipeline/        # 공공 API 데이터 수집 파이프라인
-├── data/             # 수집된 데이터 저장 (git 추적 제외)
-├── docs/            # 출품작 설명서 등 문서
+├── backend/          # FastAPI 서버 (pipeline/ 을 REST API로 노출)
+├── frontend/          # React + Vite 대시보드
+├── pipeline/          # 공공 API 데이터 수집 + 위험도/코치/신고서 로직
+├── data/              # 수집된 데이터 저장 (git 추적 제외)
+├── docs/              # 출품작 설명서 등 문서
 ├── requirements.txt
-├── .env.example      # API 키 자리 표시용 (실제 키는 .env에 별도 보관)
+├── .env.example       # API 키 자리 표시용 (실제 키는 .env에 별도 보관)
 └── .gitignore
 ```
 
 ## 6. 설치 및 실행 방법
-
-> 아직 앱 코드가 구현되지 않아 아래는 예상되는 실행 형태입니다. (TODO)
 
 ```bash
 # 1. 저장소 클론
 git clone https://github.com/<your-id>/aqua-sentinel.git
 cd aqua-sentinel
 
-# 2. 가상환경 생성 및 활성화
+# 2. 백엔드 의존성 설치 (가상환경 권장)
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 3. 의존성 설치
 pip install -r requirements.txt
 
-# 4. 환경변수 설정
+# 3. 환경변수 설정
 cp .env.example .env
-# .env 파일을 열어 DATA_GO_KR_API_KEY, ANTHROPIC_API_KEY 값을 채워 넣기
+# .env 파일을 열어 NIFS_TEMP_API_KEY, NIFS_REDTIDE_API_KEY, ANTHROPIC_API_KEY 값을 채워 넣기
 
-# 5. 데이터 수집 파이프라인 실행 (TODO: 아직 스켈레톤 상태)
-python pipeline/collect_kosha.py
+# 4. 백엔드 실행 (포트 8010)
+python -m uvicorn backend.main:app --port 8010 --reload
 
-# 6. Streamlit 앱 실행 (TODO: 아직 app 코드 미구현)
-streamlit run app/main.py
+# 5. 프론트엔드 실행 (다른 터미널에서)
+cd frontend
+npm install
+npm run dev
+# http://localhost:5173 에서 확인
 ```
 
 ## 7. 공모전 정보

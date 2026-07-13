@@ -1,5 +1,7 @@
-# 대시보드/UI
-streamlit>=1.38
+# API 서버 (프론트엔드는 frontend/ 의 React 앱)
+fastapi>=0.115
+uvicorn[standard]>=0.32
+python-multipart>=0.0.12
 
 # 데이터 처리
 pandas>=2.2
