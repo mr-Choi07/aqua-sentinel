@@ -1,3 +1,5 @@
+import { AlertTriangle, Radio, Thermometer, type LucideIcon } from "lucide-react";
+
 interface Props {
   stationCount: number;
   avgSurfaceTemp: number | null;
@@ -5,12 +7,12 @@ interface Props {
 }
 
 function MetricCard({
-  icon,
+  Icon,
   label,
   value,
   accent,
 }: {
-  icon: string;
+  Icon: LucideIcon;
   label: string;
   value: string;
   accent: string;
@@ -21,10 +23,10 @@ function MetricCard({
       style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}
     >
       <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-xl"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
         style={{ background: `color-mix(in srgb, ${accent} 14%, transparent)`, color: accent }}
       >
-        {icon}
+        <Icon size={20} />
       </div>
       <div>
         <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
@@ -39,15 +41,15 @@ function MetricCard({
 export default function MetricsBar({ stationCount, avgSurfaceTemp, alertCount }: Props) {
   return (
     <div className="flex gap-4">
-      <MetricCard icon="📡" label="모니터링 관측소" value={String(stationCount)} accent="var(--accent)" />
+      <MetricCard Icon={Radio} label="모니터링 관측소" value={String(stationCount)} accent="var(--accent)" />
       <MetricCard
-        icon="🌡️"
+        Icon={Thermometer}
         label="표층 평균 수온"
         value={avgSurfaceTemp !== null ? `${avgSurfaceTemp.toFixed(1)} ℃` : "-"}
         accent="var(--accent-2)"
       />
       <MetricCard
-        icon="⚠️"
+        Icon={AlertTriangle}
         label="주의·경보 단계 어장"
         value={alertCount !== null ? String(alertCount) : "-"}
         accent={alertCount && alertCount > 0 ? "var(--critical)" : "var(--good)"}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AlertTriangle, ChevronDown, ChevronUp, Waves } from "lucide-react";
 
 interface Props {
   species: string[];
@@ -17,10 +18,10 @@ export default function Sidebar({ species, selectedSpecies, onSelectSpecies }: P
     >
       <div className="flex items-center gap-3">
         <div
-          className="flex h-11 w-11 items-center justify-center rounded-xl text-2xl"
+          className="flex h-11 w-11 items-center justify-center rounded-xl"
           style={{ background: "var(--accent)" }}
         >
-          🐟
+          <Waves size={22} color="#fff" />
         </div>
         <div>
           <h1 className="text-lg font-bold leading-tight">어장지킴이</h1>
@@ -52,10 +53,11 @@ export default function Sidebar({ species, selectedSpecies, onSelectSpecies }: P
       </select>
       {isWeakEvidence && (
         <p
-          className="mt-2.5 rounded-md px-2.5 py-2 text-xs leading-relaxed"
+          className="mt-2.5 flex items-start gap-1.5 rounded-md px-2.5 py-2 text-xs leading-relaxed"
           style={{ background: "rgba(250,178,25,0.12)", color: "#8a5c00" }}
         >
-          ⚠️ 이 어종은 폐사 임계수온 근거가 부족해 일반 기준을 적용 중입니다.
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          이 어종은 폐사 임계수온 근거가 부족해 일반 기준을 적용 중입니다.
         </p>
       )}
 
@@ -66,7 +68,7 @@ export default function Sidebar({ species, selectedSpecies, onSelectSpecies }: P
           onClick={() => setExpanded((v) => !v)}
         >
           위험도는 어떻게 계산되나요?
-          <span>{expanded ? "−" : "+"}</span>
+          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
         {expanded && (
           <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>

@@ -15,12 +15,34 @@ export default function TemperatureTab({ data }: { data: TemperatureReading[] })
     <div className="flex flex-col gap-6">
       <div style={{ width: "100%", height: 280 }}>
         <ResponsiveContainer>
-          <BarChart data={surface}>
+          <BarChart data={surface} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="sta_nam_kor" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} unit="℃" />
-            <Tooltip formatter={(value) => [`${value}℃`, "수온"]} />
-            <Bar dataKey="wtr_tmp" fill="#2a78d6" radius={[4, 4, 0, 0]} />
+            <XAxis
+              dataKey="sta_nam_kor"
+              tick={{ fontSize: 12, fill: "var(--text-secondary)" }}
+              axisLine={{ stroke: "var(--border)" }}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 12, fill: "var(--text-secondary)" }}
+              axisLine={false}
+              tickLine={false}
+              unit="℃"
+            />
+            <Tooltip
+              cursor={{ fill: "var(--surface-2)" }}
+              formatter={(value) => [`${value}℃`, "수온"]}
+              contentStyle={{
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                boxShadow: "var(--shadow-md)",
+                color: "var(--text-primary)",
+              }}
+              labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+              itemStyle={{ color: "var(--accent)" }}
+            />
+            <Bar dataKey="wtr_tmp" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={56} />
           </BarChart>
         </ResponsiveContainer>
       </div>

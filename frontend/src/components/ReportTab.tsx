@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { CheckCircle2, ImagePlus, X } from "lucide-react";
 import type { RiskResult } from "../api";
 import { submitDamageReport } from "../api";
 
@@ -12,9 +13,11 @@ export default function ReportTab({ riskData, species }: Props) {
   const [owner, setOwner] = useState("");
   const [farmName, setFarmName] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (riskData.length === 0) {
     return (
@@ -22,6 +25,11 @@ export default function ReportTab({ riskData, species }: Props) {
         위험도 데이터가 없어 보고서를 생성할 수 없습니다.
       </p>
     );
+  }
+
+  function handleFile(file: File | null) {
+    setPhoto(file);
+    setPreviewUrl(file ? URL.createObjectURL(file) : null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -94,13 +102,50 @@ export default function ReportTab({ riskData, species }: Props) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1.5">폐사 사진 업로드</label>
+          <label className="block text-sm font-medium mb-1.5">폐사 사진</label>
           <input
+            ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-            className="text-sm"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
           />
+
+          {!photo ? (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex w-full flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-sm transition-colors hover:border-solid"
+              style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+            >
+              <ImagePlus size={28} style={{ color: "var(--text-muted)" }} />
+              <span className="font-medium">클릭해서 사진 선택</span>
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                JPG, PNG, WEBP
+              </span>
+            </button>
+          ) : (
+            <div
+              className="flex items-center gap-3 rounded-lg border p-3"
+              style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            >
+              {previewUrl && (
+                <img src={previewUrl} alt="" className="h-14 w-14 rounded-md object-cover" />
+              )}
+              <span className="flex-1 truncate text-sm">{photo.name}</span>
+              <button
+                type="button"
+                onClick={() => handleFile(null)}
+                className="rounded-md p-1.5"
+                style={{ color: "var(--text-muted)" }}
+                aria-label="사진 제거"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
         </div>
 
         <button
@@ -119,8 +164,12 @@ export default function ReportTab({ riskData, species }: Props) {
           className="mt-4 flex items-center justify-between rounded-lg p-4"
           style={{ background: "color-mix(in srgb, var(--good) 10%, transparent)" }}
         >
-          <span className="text-sm font-medium" style={{ color: "var(--good)" }}>
-            ✅ 보고서가 생성되었습니다
+          <span
+            className="flex items-center gap-2 text-sm font-medium"
+            style={{ color: "var(--good)" }}
+          >
+            <CheckCircle2 size={18} />
+            보고서가 생성되었습니다
           </span>
           <a
             href={pdfUrl}
