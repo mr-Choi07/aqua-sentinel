@@ -3,6 +3,7 @@ streamlit>=1.38
 
 # 데이터 처리
 pandas>=2.2
+numpy>=1.26
 
 # 공공데이터포털 API 연동
 requests>=2.32

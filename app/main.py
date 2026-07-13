@@ -10,32 +10,37 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from pipeline.collect_kosha import TARGET_STATIONS, fetch_realtime_temperature
 from pipeline.collect_redtide import fetch_redtide_info, filter_target_region
-
-# 고수온 위험 등급 임계값(℃). 실제 국립수산과학원 특보 기준은 예보 기반(28℃ 도달/지속
-# 예상일수)이라 이것과 다르다 — 여기서는 현재 관측 수온만으로 단순화한 잠정 기준이다.
-# TODO: 위험도 산출 로직 단계에서 특보 기준에 맞게 정교화할 것
-TEMP_WARNING = 25.0
-TEMP_DANGER = 28.0
+from pipeline.db import insert_readings
+from pipeline.risk import classify_all_stations
 
 LAYER_LABELS = {"1": "표층", "2": "중층", "3": "저층"}
-
-
-def classify_temp(temp: float) -> str:
-    if temp >= TEMP_DANGER:
-        return "🔴 경보"
-    if temp >= TEMP_WARNING:
-        return "🟡 주의"
-    return "🟢 정상"
+LEVEL_BADGES = {
+    "경보": "🔴 경보",
+    "주의": "🟠 주의",
+    "관심": "🟡 관심",
+    "정상": "🟢 정상",
+    "데이터 부족": "⚪ 데이터 부족",
+}
 
 
 @st.cache_data(ttl=1800)
 def load_temperature_data() -> pd.DataFrame:
     records = fetch_realtime_temperature()
+    insert_readings(records, TARGET_STATIONS)  # 대시보드 조회만으로도 이력이 누적되도록 함께 적재
+
     df = pd.DataFrame(records)
     df["region"] = df["sta_cde"].map(TARGET_STATIONS)
     df["wtr_tmp"] = df["wtr_tmp"].astype(float)
     df["obs_lay"] = df["obs_lay"].astype(str).map(LAYER_LABELS)
-    df["위험도"] = df["wtr_tmp"].map(classify_temp)
+    return df
+
+
+@st.cache_data(ttl=1800)
+def load_risk_data() -> pd.DataFrame:
+    results = classify_all_stations(list(TARGET_STATIONS.keys()))
+    df = pd.DataFrame(results)
+    df["region"] = df["sta_cde"].map(TARGET_STATIONS)
+    df["badge"] = df["level"].map(LEVEL_BADGES)
     return df
 
 
@@ -49,12 +54,23 @@ def load_redtide_data() -> pd.DataFrame:
 st.set_page_config(page_title="어장지킴이", page_icon="🐟", layout="wide")
 st.title("🐟 어장지킴이")
 st.caption("고수온·적조 조기경보 + 피해 증빙 자동화 AI — 통영·거제·남해·고성")
+st.info(
+    "위험도는 국립수산과학원의 공식 고수온 특보(정밀 해양예보모델 기반)를 대체하지 않으며, "
+    "실시간 관측 데이터의 단기 추세를 기반으로 한 보조 지표입니다.",
+    icon="ℹ️",
+)
 
 try:
     temp_df = load_temperature_data()
 except Exception as e:
     st.error(f"수온 데이터를 불러오지 못했습니다: {e}")
     temp_df = pd.DataFrame()
+
+try:
+    risk_df = load_risk_data()
+except Exception as e:
+    st.error(f"위험도를 계산하지 못했습니다: {e}")
+    risk_df = pd.DataFrame()
 
 try:
     redtide_df = load_redtide_data()
@@ -67,14 +83,37 @@ col1.metric("모니터링 관측소", len(TARGET_STATIONS))
 if not temp_df.empty:
     surface_df = temp_df[temp_df["obs_lay"] == "표층"]
     col2.metric("표층 평균 수온", f"{surface_df['wtr_tmp'].mean():.1f} ℃")
-    col3.metric("경보 단계 관측소", (surface_df["위험도"] == "🔴 경보").sum())
+if not risk_df.empty:
+    alert_count = risk_df["level"].isin(["주의", "경보"]).sum()
+    col3.metric("주의·경보 단계 어장", alert_count)
 
-st.subheader("실시간 수온 현황")
+st.subheader("어장별 위험도")
+if risk_df.empty:
+    st.info("위험도 데이터가 없습니다.")
+else:
+    st.dataframe(
+        risk_df.sort_values("level")[
+            ["region", "sta_cde", "badge", "current_temp", "predicted_temp_72h", "reason"]
+        ].rename(
+            columns={
+                "region": "관측소",
+                "sta_cde": "코드",
+                "badge": "위험도",
+                "current_temp": "현재 수온(℃)",
+                "predicted_temp_72h": "72시간 후 예상(℃)",
+                "reason": "판단 근거",
+            }
+        ),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+st.subheader("실시간 수온 현황 (전체 관측층)")
 if temp_df.empty:
     st.info("수온 데이터가 없습니다.")
 else:
     st.dataframe(
-        temp_df[["region", "sta_nam_kor", "obs_lay", "wtr_tmp", "obs_tim", "위험도"]]
+        temp_df[["region", "sta_nam_kor", "obs_lay", "wtr_tmp", "obs_tim"]]
         .sort_values(["region", "obs_lay"])
         .rename(
             columns={

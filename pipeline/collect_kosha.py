@@ -32,11 +32,17 @@ TODO: 하동은 이 API 응답에 해당 관측소가 없음(패류양식 위주
 """
 
 import os
+import sys
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import requests
 from dotenv import load_dotenv
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+from pipeline.db import insert_readings
 
 load_dotenv()
 
@@ -103,4 +109,8 @@ def save_to_csv(records: list[dict], output_dir: str = "data") -> str:
 if __name__ == "__main__":
     records = fetch_realtime_temperature()
     output_path = save_to_csv(records)
-    print(f"[{datetime.now()}] {len(records)}건 수집 완료 -> {output_path}")
+    inserted = insert_readings(records, TARGET_STATIONS)
+    print(
+        f"[{datetime.now()}] {len(records)}건 수집 완료 -> {output_path} "
+        f"(DB 신규 이력 {inserted}건)"
+    )
