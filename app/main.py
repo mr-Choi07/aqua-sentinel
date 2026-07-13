@@ -16,6 +16,8 @@ from pipeline.db import insert_readings
 from pipeline.risk import SPECIES_THRESHOLDS, classify_all_stations
 
 LAYER_LABELS = {"1": "표층", "2": "중층", "3": "저층"}
+# 상태 팔레트: 정상=good, 관심=warning, 주의=serious, 경보=critical (색상만으로 판단하지
+# 않도록 아이콘 + 텍스트 라벨을 항상 함께 표기한다)
 LEVEL_BADGES = {
     "경보": "🔴 경보",
     "주의": "🟠 주의",
@@ -54,17 +56,20 @@ def load_redtide_data() -> pd.DataFrame:
 
 
 st.set_page_config(page_title="어장지킴이", page_icon="🐟", layout="wide")
-st.title("🐟 어장지킴이")
-st.caption("고수온·적조 조기경보 + 피해 증빙 자동화 AI — 통영·거제·남해·고성")
-st.info(
-    "위험도는 국립수산과학원의 공식 고수온 특보(정밀 해양예보모델 기반)를 대체하지 않으며, "
-    "실시간 관측 데이터의 단기 추세를 기반으로 한 보조 지표입니다.",
-    icon="ℹ️",
-)
 
-selected_species = st.selectbox("양식 어종 선택 (어종별 임계온도 반영)", list(SPECIES_THRESHOLDS.keys()))
-if selected_species in ("굴", "참돔"):
-    st.caption("⚠️ 이 어종은 신뢰할 만한 폐사 임계수온 자료를 찾지 못해 일반 기준을 그대로 적용 중입니다.")
+with st.sidebar:
+    st.title("🐟 어장지킴이")
+    st.caption("고수온·적조 조기경보 + 피해 증빙 자동화 AI")
+    st.divider()
+    selected_species = st.selectbox("양식 어종", list(SPECIES_THRESHOLDS.keys()))
+    if selected_species in ("굴", "참돔"):
+        st.caption("⚠️ 이 어종은 폐사 임계수온 근거가 부족해 일반 기준을 적용 중입니다.")
+    with st.expander("위험도는 어떻게 계산되나요?"):
+        st.write(
+            "국립수산과학원의 공식 고수온 특보(정밀 해양예보모델 기반)를 대체하지 않는 "
+            "보조 지표입니다. 실시간 관측 수온의 단기 추세로 정상/관심/주의/경보 4단계를 "
+            "근사해서 계산합니다."
+        )
 
 try:
     temp_df = load_temperature_data()
@@ -91,140 +96,151 @@ if not temp_df.empty:
     col2.metric("표층 평균 수온", f"{surface_df['wtr_tmp'].mean():.1f} ℃")
 if not risk_df.empty:
     alert_count = risk_df["level"].isin(["주의", "경보"]).sum()
-    col3.metric("주의·경보 단계 어장", alert_count)
+    col3.metric("주의·경보 단계 어장", int(alert_count))
 
-st.subheader("어장별 위험도")
-if risk_df.empty:
-    st.info("위험도 데이터가 없습니다.")
-else:
-    st.dataframe(
-        risk_df.sort_values("level")[
-            ["region", "sta_cde", "badge", "current_temp", "predicted_temp_72h", "reason"]
-        ].rename(
-            columns={
-                "region": "관측소",
-                "sta_cde": "코드",
-                "badge": "위험도",
-                "current_temp": "현재 수온(℃)",
-                "predicted_temp_72h": "72시간 후 예상(℃)",
-                "reason": "판단 근거",
-            }
-        ),
-        use_container_width=True,
-        hide_index=True,
-    )
+st.divider()
 
-st.subheader("AI 대응 코치")
-st.caption("호출 시에만 Claude API를 사용합니다 (자동 호출 없음).")
-if risk_df.empty:
-    st.info("위험도 데이터가 없어 코치를 호출할 수 없습니다.")
-else:
-    station_options = dict(zip(risk_df["region"], risk_df["sta_cde"]))
-    selected_region = st.selectbox("코치를 요청할 관측소 선택", list(station_options.keys()))
-    if st.button("대응 코치에게 물어보기"):
-        selected_row = risk_df[risk_df["sta_cde"] == station_options[selected_region]].iloc[0]
-        with st.spinner("Claude Haiku 4.5 호출 중..."):
-            try:
-                message = generate_coaching_message(
-                    risk_result=selected_row.to_dict(),
-                    species=selected_species,
-                    region=selected_region,
-                )
-                st.markdown(message)
-            except Exception as e:
-                st.error(f"대응 코치 호출 실패: {e}")
-
-st.subheader("실시간 수온 현황 (전체 관측층)")
-if temp_df.empty:
-    st.info("수온 데이터가 없습니다.")
-else:
-    st.dataframe(
-        temp_df[["region", "sta_nam_kor", "obs_lay", "wtr_tmp", "obs_tim"]]
-        .sort_values(["region", "obs_lay"])
-        .rename(
-            columns={
-                "region": "지역",
-                "sta_nam_kor": "관측소",
-                "obs_lay": "수심층",
-                "wtr_tmp": "수온(℃)",
-                "obs_tim": "관측시각",
-            }
-        ),
-        use_container_width=True,
-        hide_index=True,
-    )
-
-    st.bar_chart(
-        surface_df.set_index("sta_nam_kor")["wtr_tmp"],
-        y_label="수온(℃)",
-    )
-
-st.subheader("적조 속보 (최근 30일, 대상 지역)")
-if redtide_df.empty:
-    st.info("최근 30일간 대상 지역에 적조 속보가 없습니다.")
-else:
-    st.dataframe(
-        redtide_df.rename(
-            columns={
-                "day_report": "속보일자",
-                "nam_biology": "원인생물",
-                "txt_seas": "조사해역",
-                "min_watertemp": "수온(min)",
-                "max_watertemp": "수온(max)",
-                "min_density": "밀도(min)",
-                "max_density": "밀도(max)",
-            }
-        )[["속보일자", "원인생물", "조사해역", "수온(min)", "수온(max)", "밀도(min)", "밀도(max)"]],
-        use_container_width=True,
-        hide_index=True,
-    )
-
-st.subheader("피해 상황 정리 보고서 (초안 생성)")
-st.caption(
-    "실제 신고 서식이 아니며, 신고 준비를 돕는 참고 자료입니다. "
-    "호출 시에만 Claude API를 사용합니다."
+tab_risk, tab_temp, tab_redtide, tab_coach, tab_report = st.tabs(
+    ["위험도 현황", "수온 상세", "적조 속보", "AI 대응 코치", "피해 신고서"]
 )
-with st.form("damage_report_form"):
-    owner_name = st.text_input("어업인명")
-    farm_name = st.text_input("어장명")
-    uploaded_photo = st.file_uploader("폐사 사진 업로드", type=["jpg", "jpeg", "png", "webp"])
-    submitted = st.form_submit_button("보고서 생성")
 
-if submitted:
-    if uploaded_photo is None:
-        st.warning("사진을 업로드해주세요.")
-    elif risk_df.empty:
-        st.warning("위험도 데이터가 없어 보고서를 생성할 수 없습니다.")
+with tab_risk:
+    if risk_df.empty:
+        st.info("위험도 데이터가 없습니다.")
     else:
-        scratch_dir = Path(__file__).resolve().parent.parent / "data" / "_uploads"
-        scratch_dir.mkdir(parents=True, exist_ok=True)
-        photo_path = scratch_dir / uploaded_photo.name
-        with open(photo_path, "wb") as f:
-            f.write(uploaded_photo.getbuffer())
+        st.dataframe(
+            risk_df.sort_values("level")[
+                ["region", "badge", "current_temp", "predicted_temp_72h", "reason"]
+            ].rename(
+                columns={
+                    "region": "관측소",
+                    "badge": "위험도",
+                    "current_temp": "현재 수온(℃)",
+                    "predicted_temp_72h": "72시간 후 예상(℃)",
+                    "reason": "판단 근거",
+                }
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
 
-        selected_row = risk_df[risk_df["region"] == selected_region].iloc[0]
-        with st.spinner("사진 분석 및 보고서 생성 중..."):
-            try:
-                ai_analysis = analyze_damage_photo(
-                    str(photo_path), species=selected_species, region=selected_region
-                )
-                output_path = scratch_dir.parent / f"damage_report_{uploaded_photo.name}.pdf"
-                build_damage_report(
-                    output_path=str(output_path),
-                    farm_info={
-                        "owner": owner_name,
-                        "farm_name": farm_name,
-                        "region": selected_region,
-                        "species": selected_species,
-                    },
-                    risk_context=selected_row.to_dict(),
-                    ai_analysis=ai_analysis,
-                    photo_path=str(photo_path),
-                )
-                st.success("보고서가 생성되었습니다.")
-                with open(output_path, "rb") as f:
-                    st.download_button(
-                        "PDF 다운로드", f, file_name="damage_report.pdf", mime="application/pdf"
+with tab_temp:
+    if temp_df.empty:
+        st.info("수온 데이터가 없습니다.")
+    else:
+        st.bar_chart(surface_df.set_index("sta_nam_kor")["wtr_tmp"], y_label="수온(℃)")
+        st.dataframe(
+            temp_df[["region", "sta_nam_kor", "obs_lay", "wtr_tmp", "obs_tim"]]
+            .sort_values(["region", "obs_lay"])
+            .rename(
+                columns={
+                    "region": "지역",
+                    "sta_nam_kor": "관측소",
+                    "obs_lay": "수심층",
+                    "wtr_tmp": "수온(℃)",
+                    "obs_tim": "관측시각",
+                }
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+with tab_redtide:
+    if redtide_df.empty:
+        st.info("최근 30일간 대상 지역에 적조 속보가 없습니다.")
+    else:
+        st.dataframe(
+            redtide_df.rename(
+                columns={
+                    "day_report": "속보일자",
+                    "nam_biology": "원인생물",
+                    "txt_seas": "조사해역",
+                    "min_watertemp": "수온(min)",
+                    "max_watertemp": "수온(max)",
+                    "min_density": "밀도(min)",
+                    "max_density": "밀도(max)",
+                }
+            )[["속보일자", "원인생물", "조사해역", "수온(min)", "수온(max)", "밀도(min)", "밀도(max)"]],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+with tab_coach:
+    st.caption("호출 시에만 Claude API를 사용합니다 (자동 호출 없음).")
+    if risk_df.empty:
+        st.info("위험도 데이터가 없어 코치를 호출할 수 없습니다.")
+    else:
+        station_options = dict(zip(risk_df["region"], risk_df["sta_cde"]))
+        selected_region = st.selectbox("관측소 선택", list(station_options.keys()))
+        if st.button("대응 코치에게 물어보기", type="primary"):
+            selected_row = risk_df[risk_df["sta_cde"] == station_options[selected_region]].iloc[0]
+            with st.spinner("Claude Haiku 4.5 호출 중..."):
+                try:
+                    message = generate_coaching_message(
+                        risk_result=selected_row.to_dict(),
+                        species=selected_species,
+                        region=selected_region,
                     )
-            except Exception as e:
-                st.error(f"보고서 생성 실패: {e}")
+                    st.markdown(message)
+                except Exception as e:
+                    st.error(f"대응 코치 호출 실패: {e}")
+
+with tab_report:
+    st.caption(
+        "실제 신고 서식이 아니며, 신고 준비를 돕는 참고 자료입니다. "
+        "호출 시에만 Claude API를 사용합니다."
+    )
+    if risk_df.empty:
+        st.info("위험도 데이터가 없어 보고서를 생성할 수 없습니다.")
+    else:
+        report_station_options = dict(zip(risk_df["region"], risk_df["sta_cde"]))
+        with st.form("damage_report_form"):
+            report_region = st.selectbox("관측소", list(report_station_options.keys()))
+            owner_name = st.text_input("어업인명")
+            farm_name = st.text_input("어장명")
+            uploaded_photo = st.file_uploader(
+                "폐사 사진 업로드", type=["jpg", "jpeg", "png", "webp"]
+            )
+            submitted = st.form_submit_button("보고서 생성", type="primary")
+
+        if submitted:
+            if uploaded_photo is None:
+                st.warning("사진을 업로드해주세요.")
+            else:
+                scratch_dir = Path(__file__).resolve().parent.parent / "data" / "_uploads"
+                scratch_dir.mkdir(parents=True, exist_ok=True)
+                photo_path = scratch_dir / uploaded_photo.name
+                with open(photo_path, "wb") as f:
+                    f.write(uploaded_photo.getbuffer())
+
+                selected_row = risk_df[
+                    risk_df["sta_cde"] == report_station_options[report_region]
+                ].iloc[0]
+                with st.spinner("사진 분석 및 보고서 생성 중..."):
+                    try:
+                        ai_analysis = analyze_damage_photo(
+                            str(photo_path), species=selected_species, region=report_region
+                        )
+                        output_path = scratch_dir.parent / f"damage_report_{uploaded_photo.name}.pdf"
+                        build_damage_report(
+                            output_path=str(output_path),
+                            farm_info={
+                                "owner": owner_name,
+                                "farm_name": farm_name,
+                                "region": report_region,
+                                "species": selected_species,
+                            },
+                            risk_context=selected_row.to_dict(),
+                            ai_analysis=ai_analysis,
+                            photo_path=str(photo_path),
+                        )
+                        st.success("보고서가 생성되었습니다.")
+                        with open(output_path, "rb") as f:
+                            st.download_button(
+                                "PDF 다운로드",
+                                f,
+                                file_name="damage_report.pdf",
+                                mime="application/pdf",
+                            )
+                    except Exception as e:
+                        st.error(f"보고서 생성 실패: {e}")
