@@ -10,7 +10,11 @@ interface Props {
 
 export default function ReportTab({ selectedRisk, species }: Props) {
   const [owner, setOwner] = useState("");
+  const [contact, setContact] = useState("");
+  const [address, setAddress] = useState("");
   const [farmName, setFarmName] = useState("");
+  const [farmAreaHa, setFarmAreaHa] = useState("");
+  const [licenseNo, setLicenseNo] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,7 +50,11 @@ export default function ReportTab({ selectedRisk, species }: Props) {
         sta_cde: selectedRisk.sta_cde,
         species,
         owner,
+        contact,
+        address,
         farm_name: farmName,
+        farm_area_ha: farmAreaHa,
+        license_no: licenseNo,
         photo,
       });
       setPdfUrl(URL.createObjectURL(blob));
@@ -80,6 +88,9 @@ export default function ReportTab({ selectedRisk, species }: Props) {
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+          1. 어업인 정보
+        </p>
         <div>
           <label className="block text-sm font-medium mb-1.5">어업인명</label>
           <input
@@ -91,6 +102,34 @@ export default function ReportTab({ selectedRisk, species }: Props) {
         </div>
 
         <div>
+          <label className="block text-sm font-medium mb-1.5">연락처</label>
+          <input
+            className="w-full rounded-lg border px-3 py-2.5 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
+            placeholder="010-0000-0000"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1.5">어장 소재지</label>
+          <input
+            className="w-full rounded-lg border px-3 py-2.5 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder={`비워두면 "${selectedRisk.region}"으로 표시됩니다`}
+          />
+        </div>
+
+        <p
+          className="mt-2 text-xs font-semibold uppercase tracking-wide"
+          style={{ color: "var(--text-muted)" }}
+        >
+          2. 피해 내용
+        </p>
+        <div>
           <label className="block text-sm font-medium mb-1.5">어장명</label>
           <input
             className="w-full rounded-lg border px-3 py-2.5 text-sm"
@@ -98,6 +137,33 @@ export default function ReportTab({ selectedRisk, species }: Props) {
             value={farmName}
             onChange={(e) => setFarmName(e.target.value)}
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1.5">양식 면적(ha)</label>
+          <input
+            className="w-full rounded-lg border px-3 py-2.5 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            value={farmAreaHa}
+            onChange={(e) => setFarmAreaHa(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1.5">어업면허/신고번호</label>
+          <input
+            className="w-full rounded-lg border px-3 py-2.5 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            value={licenseNo}
+            onChange={(e) => setLicenseNo(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <p className="mb-2 rounded-md p-2 text-xs" style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}>
+            "피해물량-확정"과 "피해 구분"은 담당 공무원의 현지 확인이 필요한 항목이라
+            자동으로 채우지 않습니다.
+          </p>
         </div>
 
         <div>

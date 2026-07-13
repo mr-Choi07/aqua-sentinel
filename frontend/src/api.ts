@@ -63,14 +63,22 @@ export async function submitDamageReport(params: {
   sta_cde: string;
   species: string;
   owner: string;
+  contact: string;
+  address: string;
   farm_name: string;
+  farm_area_ha: string;
+  license_no: string;
   photo: File;
 }): Promise<Blob> {
   const form = new FormData();
   form.append("sta_cde", params.sta_cde);
   form.append("species", params.species);
   form.append("owner", params.owner);
+  form.append("contact", params.contact);
+  form.append("address", params.address);
   form.append("farm_name", params.farm_name);
+  form.append("farm_area_ha", params.farm_area_ha);
+  form.append("license_no", params.license_no);
   form.append("photo", params.photo);
 
   const res = await fetch(`${API_BASE}/api/damage-report`, {

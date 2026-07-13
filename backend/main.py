@@ -86,7 +86,11 @@ def post_damage_report(
     sta_cde: str = Form(...),
     species: str = Form("일반(기본)"),
     owner: str = Form(""),
+    contact: str = Form(""),
+    address: str = Form(""),
     farm_name: str = Form(""),
+    farm_area_ha: str = Form(""),
+    license_no: str = Form(""),
     photo: UploadFile = File(...),
 ) -> FileResponse:
     if sta_cde not in TARGET_STATIONS:
@@ -105,7 +109,15 @@ def post_damage_report(
     output_path = upload_dir / f"damage_report_{photo.filename}.pdf"
     build_damage_report(
         output_path=str(output_path),
-        farm_info={"owner": owner, "farm_name": farm_name, "region": region, "species": species},
+        farm_info={
+            "owner": owner,
+            "contact": contact,
+            "region": address or region,
+            "farm_name": farm_name,
+            "farm_area_ha": farm_area_ha,
+            "license_no": license_no,
+            "species": species,
+        },
         risk_context=risk_result,
         ai_analysis=ai_analysis,
         photo_path=str(photo_path),
