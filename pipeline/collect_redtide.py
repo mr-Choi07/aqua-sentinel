@@ -42,6 +42,9 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 NIFS_REDTIDE_API_URL = "https://www.nifs.go.kr/OpenAPI_json"
 

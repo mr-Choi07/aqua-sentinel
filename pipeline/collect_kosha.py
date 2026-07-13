@@ -36,6 +36,9 @@ from datetime import datetime
 
 import pandas as pd
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 NIFS_REALTIME_TEMP_API_URL = "https://www.nifs.go.kr/OpenAPI_json"
 
