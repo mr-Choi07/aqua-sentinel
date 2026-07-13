@@ -53,3 +53,11 @@ table {
 tbody tr:hover {
   background: var(--surface-2);
 }
+
+/* Recharts' root <svg> takes focus on click and shows the browser's
+   default focus ring; the chart isn't a keyboard-navigable control. */
+.recharts-wrapper:focus,
+.recharts-wrapper *:focus,
+.recharts-surface {
+  outline: none;
+}
