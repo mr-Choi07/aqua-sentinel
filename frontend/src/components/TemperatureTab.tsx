@@ -10,9 +10,7 @@ const STRATIFICATION_WARNING_DIFF = 3;
 interface StationStratification {
   sta_cde: string;
   region: string;
-  sta_nam_kor: string;
   surface: number | null;
-  mid: number | null;
   bottom: number | null;
   diff: number | null;
 }
@@ -29,14 +27,11 @@ function computeStratification(data: TemperatureReading[]): StationStratificatio
     const first = readings[0];
     const byLayer = (layer: string) => readings.find((r) => r.obs_lay === layer)?.wtr_tmp ?? null;
     const surface = byLayer("1");
-    const mid = byLayer("2");
-    const bottom = byLayer("3") ?? mid;
+    const bottom = byLayer("3") ?? byLayer("2");
     return {
       sta_cde: first.sta_cde,
       region: first.region,
-      sta_nam_kor: first.sta_nam_kor,
       surface,
-      mid,
       bottom,
       diff: surface !== null && bottom !== null ? surface - bottom : null,
     };
@@ -53,59 +48,43 @@ export default function TemperatureTab({ data }: { data: TemperatureReading[] })
   );
 
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-        표층-저층 온도차가 클수록 층이 섞이지 않는 성층화가 진행 중일 가능성이 높습니다
-        (아래 경고 기준은 공식 수치가 아닌 잠정 휴리스틱입니다).
-      </p>
-
-      <div
-        className="overflow-hidden overflow-x-auto rounded-lg border"
-        style={{ borderColor: "var(--border)" }}
-      >
-        <table className="w-full text-sm">
-          <thead>
-            <tr
-              className="text-left text-xs font-semibold uppercase tracking-wide"
-              style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}
-            >
-              <th className="p-3">지역</th>
-              <th className="p-3">관측소</th>
-              <th className="p-3 text-right">표층(℃)</th>
-              <th className="p-3 text-right">중층(℃)</th>
-              <th className="p-3 text-right">저층(℃)</th>
-              <th className="p-3 text-right">표층-저층 온도차</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stations.map((s) => {
-              const warn = s.diff !== null && s.diff >= STRATIFICATION_WARNING_DIFF;
-              return (
-                <tr key={s.sta_cde} className="border-t" style={{ borderColor: "var(--border)" }}>
-                  <td className="p-3 font-medium">{s.region}</td>
-                  <td className="p-3">{s.sta_nam_kor}</td>
-                  <td className="p-3 text-right tabular-nums">{s.surface?.toFixed(1) ?? "-"}</td>
-                  <td className="p-3 text-right tabular-nums">{s.mid?.toFixed(1) ?? "-"}</td>
-                  <td className="p-3 text-right tabular-nums">{s.bottom?.toFixed(1) ?? "-"}</td>
-                  <td className="p-3 text-right">
-                    {s.diff !== null ? (
-                      <span
-                        className="inline-flex items-center gap-1.5 font-semibold tabular-nums"
-                        style={{ color: warn ? "var(--serious)" : "var(--text-primary)" }}
-                      >
-                        {warn && <AlertTriangle size={14} />}
-                        {s.diff.toFixed(1)}℃
-                      </span>
-                    ) : (
-                      <span style={{ color: "var(--text-muted)" }}>데이터 없음</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <div className="flex flex-col gap-2.5">
+      {stations.map((s) => {
+        const warn = s.diff !== null && s.diff >= STRATIFICATION_WARNING_DIFF;
+        return (
+          <div
+            key={s.sta_cde}
+            className="rounded-2xl p-4"
+            style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+          >
+            <p className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+              {s.region}
+            </p>
+            <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+              물 위 {s.surface?.toFixed(1) ?? "-"}°C · 물 아래 {s.bottom?.toFixed(1) ?? "-"}°C
+            </p>
+            {s.diff !== null ? (
+              warn ? (
+                <p
+                  className="mt-2 flex items-center gap-1.5 text-base font-bold"
+                  style={{ color: "var(--warning)" }}
+                >
+                  <AlertTriangle size={18} />
+                  물 위아래 온도 차이가 커서 아래쪽 산소가 부족해질 수 있어요
+                </p>
+              ) : (
+                <p className="mt-2 text-base font-semibold" style={{ color: "var(--good)" }}>
+                  물 위아래 온도 차이가 크지 않아요
+                </p>
+              )
+            ) : (
+              <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
+                데이터가 부족해요
+              </p>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

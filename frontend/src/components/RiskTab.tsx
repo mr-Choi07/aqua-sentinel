@@ -1,5 +1,6 @@
 import type { RiskResult } from "../api";
 import Badge from "./Badge";
+import { statusSentence } from "../lib/status";
 
 export default function RiskTab({ data }: { data: RiskResult[] }) {
   if (data.length === 0) {
@@ -9,47 +10,27 @@ export default function RiskTab({ data }: { data: RiskResult[] }) {
   const sorted = [...data].sort((a, b) => a.level.localeCompare(b.level, "ko"));
 
   return (
-    <div
-      className="overflow-hidden overflow-x-auto rounded-lg border"
-      style={{ borderColor: "var(--border)" }}
-    >
-      <table className="w-full text-sm">
-        <thead>
-          <tr
-            className="text-left text-xs font-semibold uppercase tracking-wide"
-            style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}
-          >
-            <th className="p-3">관측소</th>
-            <th className="p-3">위험도</th>
-            <th className="p-3 text-right">현재 수온(℃)</th>
-            <th className="p-3 text-right">72시간 후 예상(℃)</th>
-            <th className="p-3">판단 근거</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((row) => (
-            <tr
-              key={row.sta_cde}
-              className="border-t transition-colors"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <td className="p-3 font-medium">{row.region}</td>
-              <td className="p-3">
-                <Badge level={row.level} />
-              </td>
-              <td className="p-3 text-right tabular-nums">
-                {row.current_temp?.toFixed(1) ?? "-"}
-              </td>
-              <td className="p-3 text-right tabular-nums">
-                {row.predicted_temp_72h?.toFixed(1) ?? "-"}
-              </td>
-              <td className="p-3" style={{ color: "var(--text-secondary)" }}>
-                {row.reason}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="flex flex-col gap-2.5">
+      {sorted.map((row) => (
+        <div
+          key={row.sta_cde}
+          className="rounded-2xl p-4"
+          style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+              {row.region}
+            </span>
+            <Badge level={row.level} />
+          </div>
+          <p className="mt-2 text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+            {statusSentence(row.level, row.current_temp)}
+          </p>
+          <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+            3일 뒤 예상 수온: {row.predicted_temp_72h?.toFixed(1) ?? "-"}°C
+          </p>
+        </div>
+      ))}
     </div>
   );
 }

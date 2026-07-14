@@ -1,36 +1,52 @@
 @import "tailwindcss";
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 
 :root {
   --surface: #ffffff;
-  --surface-2: #f3f2ee;
+  --surface-2: #f0efe9;
   --page: #f4f3ee;
   --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted: #898781;
-  --border: #e1e0d9;
-  --accent: #2a78d6;
-  --accent-2: #1baf7a;
-  --good: #0ca30c;
-  --warning: #fab219;
-  --serious: #ec835a;
-  --critical: #d03b3b;
+  --text-secondary: #3d3c38;
+  --text-muted: #6b6a63;
+  --border: #d9d8d0;
+  --accent: #1d63b8;
+  --accent-2: #128f61;
+
+  /* 신호등 상태색 — 4단계(정상/관심/주의/경보) + 데이터 부족(중립).
+     "관심"과 "주의"는 둘 다 노랑 계열이 아니라 반드시 구분되어야 한다 —
+     관심은 "72시간 내 도달 예상"(아직 안 옴), 주의는 "이미 관측 수온이
+     임계치 이상"(국립수산과학원 주의보 발령 기준과 동일, 지금 벌어진 일)이라
+     같은 색으로 묶으면 긴급도 판단을 그르칠 수 있다. */
+  --good: #16a34a;
+  --caution: #eab308;
+  --warning: #ea580c;
+  --critical: #dc2626;
+  --neutral: #78716c;
+
   --shadow-sm: 0 1px 2px rgba(11, 11, 11, 0.05), 0 1px 3px rgba(11, 11, 11, 0.06);
   --shadow-md: 0 4px 10px rgba(11, 11, 11, 0.06), 0 2px 4px rgba(11, 11, 11, 0.05);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --surface: #1f1f1e;
-    --surface-2: #262625;
-    --page: #121212;
+    --surface: #201f1c;
+    --surface-2: #2b2a26;
+    --page: #131211;
     --text-primary: #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted: #898781;
-    --border: #33332f;
-    --accent: #3987e5;
-    --accent-2: #199e70;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
-    --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.3);
+    --text-secondary: #e2e0d8;
+    --text-muted: #a8a69d;
+    --border: #3c3b36;
+    --accent: #5b9bef;
+    --accent-2: #34c98d;
+
+    --good: #34d16f;
+    --caution: #fbbf24;
+    --warning: #fb923c;
+    --critical: #f87171;
+    --neutral: #9c9a93;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -38,11 +54,23 @@
   box-sizing: border-box;
 }
 
+html {
+  /* 본문 최소 18px 기준으로 전체 스케일을 올린다(브라우저 기본 16px -> 18px). */
+  font-size: 18px;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Pretendard Variable", Pretendard, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-weight: 600;
   background: var(--page);
   color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
 }
 
 table {
@@ -52,4 +80,9 @@ table {
 
 tbody tr:hover {
   background: var(--surface-2);
+}
+
+/* 큰 터치 영역이 필요한 버튼 공통 클래스 — 최소 48px 높이 보장 */
+.tap-target {
+  min-height: 48px;
 }

@@ -33,12 +33,12 @@ function buildAliasMap(stations: RiskResult[]): Record<string, string[]> {
 function ImpactBadge({ affected }: { affected: boolean }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold"
       style={{
         background: affected
-          ? "color-mix(in srgb, var(--critical) 14%, transparent)"
-          : "color-mix(in srgb, var(--text-muted) 14%, transparent)",
-        color: affected ? "var(--critical)" : "var(--text-muted)",
+          ? "color-mix(in srgb, var(--critical) 16%, transparent)"
+          : "color-mix(in srgb, var(--neutral) 16%, transparent)",
+        color: affected ? "var(--critical)" : "var(--text-secondary)",
       }}
     >
       {affected ? "내 어장 영향 있음" : "영향 없음"}
@@ -66,57 +66,35 @@ export default function RedtideTab({ data, stations, selectedStation }: Props) {
   withImpact.sort((a, b) => Number(b.affected) - Number(a.affected));
 
   return (
-    <div>
+    <div className="flex flex-col gap-2.5">
       {myStation && (
-        <p className="mb-3 text-xs" style={{ color: "var(--text-muted)" }}>
-          "{myStation.region}" 기준 판단 — 위경도 반경이 아닌 조사해역 지명 일치 여부로
-          근사합니다.
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          "{myStation.region}" 기준으로 판단했어요 (정확한 위치가 아닌 지명으로 근사한 값이에요).
         </p>
       )}
-      <div
-        className="overflow-hidden overflow-x-auto rounded-lg border"
-        style={{ borderColor: "var(--border)" }}
-      >
-        <table className="w-full text-sm">
-          <thead>
-            <tr
-              className="text-left text-xs font-semibold uppercase tracking-wide"
-              style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}
-            >
-              <th className="p-3">내 어장 영향</th>
-              <th className="p-3">속보일자</th>
-              <th className="p-3">원인생물</th>
-              <th className="p-3">조사해역</th>
-              <th className="p-3 text-right">수온(min~max)</th>
-              <th className="p-3 text-right">밀도(min~max)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {withImpact.map(({ row, affected }, i) => (
-              <tr
-                key={`${row.cod_news}-${i}`}
-                className="border-t"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <td className="p-3">
-                  <ImpactBadge affected={affected} />
-                </td>
-                <td className="p-3 font-medium">{row.day_report}</td>
-                <td className="p-3 italic" style={{ color: "var(--text-secondary)" }}>
-                  {row.nam_biology}
-                </td>
-                <td className="p-3">{row.txt_seas}</td>
-                <td className="p-3 text-right tabular-nums">
-                  {row.min_watertemp}~{row.max_watertemp}℃
-                </td>
-                <td className="p-3 text-right tabular-nums">
-                  {row.min_density}~{row.max_density}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {withImpact.map(({ row, affected }, i) => (
+        <div
+          key={`${row.cod_news}-${i}`}
+          className="rounded-2xl p-4"
+          style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+              {row.day_report}
+            </span>
+            <ImpactBadge affected={affected} />
+          </div>
+          <p className="mt-1 text-base" style={{ color: "var(--text-secondary)" }}>
+            원인생물: <span className="italic">{row.nam_biology}</span>
+          </p>
+          <p className="mt-1 text-base" style={{ color: "var(--text-secondary)" }}>
+            발생 해역: {row.txt_seas}
+          </p>
+          <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
+            수온 {row.min_watertemp}~{row.max_watertemp}°C · 밀도 {row.min_density}~{row.max_density}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }

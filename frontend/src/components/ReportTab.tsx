@@ -1,14 +1,15 @@
 import { useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, ImagePlus, RotateCcw, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, ImagePlus, RotateCcw, X } from "lucide-react";
 import type { AnalyzeReportResult, RiskResult } from "../api";
 import { analyzeDamagePhoto, fetchOfficialPdf, fetchSummaryPdf } from "../api";
 
 interface Props {
   selectedRisk: RiskResult | null;
   species: string;
+  onBack: () => void;
 }
 
-export default function ReportTab({ selectedRisk, species }: Props) {
+export default function ReportTab({ selectedRisk, species, onBack }: Props) {
   const [owner, setOwner] = useState("");
   const [contact, setContact] = useState("");
   const [address, setAddress] = useState("");
@@ -31,11 +32,25 @@ export default function ReportTab({ selectedRisk, species }: Props) {
   const [officialError, setOfficialError] = useState<string | null>(null);
   const [officialUrl, setOfficialUrl] = useState<string | null>(null);
 
+  const backButton = (
+    <button
+      onClick={onBack}
+      className="tap-target flex w-fit items-center gap-2 rounded-xl px-4 py-2.5 text-lg font-bold"
+      style={{ color: "var(--text-primary)" }}
+    >
+      <ArrowLeft size={24} />
+      홈으로
+    </button>
+  );
+
   if (!selectedRisk) {
     return (
-      <p style={{ color: "var(--text-secondary)" }}>
-        위험도 데이터가 없어 신고서 초안을 생성할 수 없습니다.
-      </p>
+      <div className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-6">
+        {backButton}
+        <p className="text-lg" style={{ color: "var(--text-secondary)" }}>
+          어장을 먼저 선택해주세요.
+        </p>
+      </div>
     );
   }
 
@@ -115,47 +130,52 @@ export default function ReportTab({ selectedRisk, species }: Props) {
     }
   }
 
+  const inputClass = "w-full rounded-xl border px-4 py-3 text-lg";
+  const inputStyle = { borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text-primary)" };
+  const labelClass = "block text-lg font-bold mb-2";
+
   return (
-    <div className="max-w-lg">
+    <div className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-6">
+      {backButton}
+
+      <h2 className="text-2xl font-extrabold" style={{ color: "var(--text-primary)" }}>
+        피해가 있어요
+      </h2>
+
       <div
-        className="mb-4 flex items-start gap-2 rounded-lg p-3 text-xs leading-relaxed"
-        style={{ background: "rgba(250,178,25,0.12)", color: "#8a5c00" }}
+        className="flex items-start gap-2 rounded-2xl p-4 text-base leading-relaxed"
+        style={{ background: "color-mix(in srgb, var(--warning) 16%, transparent)", color: "var(--text-primary)" }}
       >
-        <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+        <AlertTriangle size={20} className="mt-0.5 shrink-0" style={{ color: "var(--warning)" }} />
         <span>
-          본 자료는 AI가 생성한 <strong>초안</strong>이며, 실제 신고·보험 청구 시 공식 서식과
-          기관 확인이 필요합니다. AI는 사진에서 관찰되는 소견만 서술할 뿐, 보상 여부나 금액을
-          판단하지 않습니다.
+          이 문서는 AI가 만든 <strong>초안</strong>이에요. 실제 신고·보험 청구는 공식 서식과
+          기관 확인이 필요해요. AI는 사진에서 보이는 것만 설명할 뿐, 보상 여부나 금액을
+          정하지 않아요.
         </span>
       </div>
 
       <p
-        className="text-sm mb-4 rounded-lg p-3"
+        className="text-base rounded-2xl p-4"
         style={{ background: "var(--surface-2)", color: "var(--text-secondary)" }}
       >
         대상 어장: <strong style={{ color: "var(--text-primary)" }}>{selectedRisk.region}</strong>
-        {" · "}어종: {species} {" · "}호출 시에만 Claude API를 사용합니다.
+        {" · "}어종: {species}
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+        <p className="text-base font-bold" style={{ color: "var(--text-muted)" }}>
           1. 어업인 정보
         </p>
         <div>
-          <label className="block text-sm font-medium mb-1.5">어업인명</label>
-          <input
-            className="w-full rounded-lg border px-3 py-2.5 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
-          />
+          <label className={labelClass}>어업인명</label>
+          <input className={inputClass} style={inputStyle} value={owner} onChange={(e) => setOwner(e.target.value)} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1.5">연락처</label>
+          <label className={labelClass}>연락처</label>
           <input
-            className="w-full rounded-lg border px-3 py-2.5 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            className={inputClass}
+            style={inputStyle}
             value={contact}
             onChange={(e) => setContact(e.target.value)}
             placeholder="010-0000-0000"
@@ -163,61 +183,59 @@ export default function ReportTab({ selectedRisk, species }: Props) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1.5">어장 소재지</label>
+          <label className={labelClass}>어장 소재지</label>
           <input
-            className="w-full rounded-lg border px-3 py-2.5 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            className={inputClass}
+            style={inputStyle}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder={`비워두면 "${selectedRisk.region}"으로 표시됩니다`}
+            placeholder={`비워두면 "${selectedRisk.region}"으로 표시돼요`}
           />
         </div>
 
-        <p
-          className="mt-2 text-xs font-semibold uppercase tracking-wide"
-          style={{ color: "var(--text-muted)" }}
-        >
+        <p className="mt-2 text-base font-bold" style={{ color: "var(--text-muted)" }}>
           2. 피해 내용
         </p>
         <div>
-          <label className="block text-sm font-medium mb-1.5">어장명</label>
+          <label className={labelClass}>어장명</label>
           <input
-            className="w-full rounded-lg border px-3 py-2.5 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            className={inputClass}
+            style={inputStyle}
             value={farmName}
             onChange={(e) => setFarmName(e.target.value)}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1.5">양식 면적(ha)</label>
+          <label className={labelClass}>양식 면적(ha)</label>
           <input
-            className="w-full rounded-lg border px-3 py-2.5 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            className={inputClass}
+            style={inputStyle}
             value={farmAreaHa}
             onChange={(e) => setFarmAreaHa(e.target.value)}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1.5">어업면허/신고번호</label>
+          <label className={labelClass}>어업면허/신고번호</label>
           <input
-            className="w-full rounded-lg border px-3 py-2.5 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            className={inputClass}
+            style={inputStyle}
             value={licenseNo}
             onChange={(e) => setLicenseNo(e.target.value)}
           />
         </div>
 
-        <div>
-          <p className="mb-2 rounded-md p-2 text-xs" style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}>
-            "피해물량-확정"과 "피해 구분"은 담당 공무원의 현지 확인이 필요한 항목이라
-            자동으로 채우지 않습니다.
-          </p>
-        </div>
+        <p
+          className="rounded-xl p-3 text-base"
+          style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}
+        >
+          "피해물량-확정"과 "피해 구분"은 담당 공무원이 직접 확인 후 적는 항목이라
+          자동으로 채우지 않아요.
+        </p>
 
         <div>
-          <label className="block text-sm font-medium mb-1.5">폐사 사진</label>
+          <label className={labelClass}>폐사 사진</label>
           <input
             ref={fileInputRef}
             type="file"
@@ -230,34 +248,34 @@ export default function ReportTab({ selectedRisk, species }: Props) {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex w-full flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-sm transition-colors hover:border-solid"
+              className="tap-target flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-4 py-10 text-lg font-semibold transition-colors hover:border-solid"
               style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
             >
-              <ImagePlus size={28} style={{ color: "var(--text-muted)" }} />
-              <span className="font-medium">클릭해서 사진 선택</span>
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              <ImagePlus size={32} style={{ color: "var(--text-muted)" }} />
+              <span>눌러서 사진 선택</span>
+              <span className="text-sm font-normal" style={{ color: "var(--text-muted)" }}>
                 JPG, PNG, WEBP
               </span>
             </button>
           ) : (
             <div
-              className="flex items-center gap-3 rounded-lg border p-3"
+              className="flex items-center gap-3 rounded-2xl border p-3"
               style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
             >
               {previewUrl && (
-                <img src={previewUrl} alt="" className="h-14 w-14 rounded-md object-cover" />
+                <img src={previewUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
               )}
-              <span className="flex-1 truncate text-sm">{photo.name}</span>
+              <span className="flex-1 truncate text-lg" style={{ color: "var(--text-primary)" }}>
+                {photo.name}
+              </span>
               <button
                 type="button"
                 onClick={() => handleFile(null)}
-                className="rounded-md p-1.5"
+                className="tap-target rounded-lg p-2"
                 style={{ color: "var(--text-muted)" }}
                 aria-label="사진 제거"
               >
-                <X size={16} />
+                <X size={20} />
               </button>
             </div>
           )}
@@ -266,8 +284,8 @@ export default function ReportTab({ selectedRisk, species }: Props) {
         <button
           type="submit"
           disabled={analyzing}
-          className="w-fit rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          style={{ background: "var(--accent)", boxShadow: "var(--shadow-sm)" }}
+          className="tap-target w-full rounded-2xl px-5 py-4 text-lg font-extrabold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{ background: "var(--accent)", boxShadow: "var(--shadow-sm)", minHeight: 56 }}
         >
           {analyzing ? "사진 분석 중..." : "사진 분석하기"}
         </button>
@@ -275,42 +293,42 @@ export default function ReportTab({ selectedRisk, species }: Props) {
 
       {analyzeError && (
         <div
-          className="mt-3 flex items-center justify-between gap-3 rounded-lg p-3 text-sm"
-          style={{ background: "color-mix(in srgb, var(--critical) 10%, transparent)", color: "var(--critical)" }}
+          className="flex items-center justify-between gap-3 rounded-2xl p-4 text-lg font-semibold"
+          style={{ background: "color-mix(in srgb, var(--critical) 14%, transparent)", color: "var(--critical)" }}
         >
           <span>{analyzeError}</span>
           <button
             type="button"
             onClick={runAnalysis}
-            className="flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold text-white"
+            className="tap-target flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-base font-bold text-white"
             style={{ background: "var(--critical)" }}
           >
-            <RotateCcw size={12} />
+            <RotateCcw size={16} />
             재시도
           </button>
         </div>
       )}
 
       {result && (
-        <div className="mt-5 flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
           {result.inconsistent && (
             <div
-              className="flex items-start gap-2 rounded-lg p-3 text-sm font-medium"
-              style={{ background: "color-mix(in srgb, var(--critical) 12%, transparent)", color: "var(--critical)" }}
+              className="flex items-start gap-2 rounded-2xl p-4 text-lg font-bold"
+              style={{ background: "color-mix(in srgb, var(--critical) 16%, transparent)", color: "var(--critical)" }}
             >
-              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <AlertTriangle size={20} className="mt-0.5 shrink-0" />
               <span>
-                관측 수온은 정상 범위이지만 사진 소견은 대량 폐사를 시사합니다. 관측 데이터와
-                사진 소견이 다를 수 있으니 신고 전 반드시 확인하세요.
+                관측 수온은 정상 범위지만 사진은 대량 폐사로 보여요. 서로 다를 수 있으니
+                신고 전 꼭 다시 확인해주세요.
               </span>
             </div>
           )}
 
           <div
-            className="rounded-lg border p-4 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            className="rounded-2xl border p-5 text-lg"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--text-primary)" }}
           >
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+            <p className="mb-2 text-base font-bold" style={{ color: "var(--text-muted)" }}>
               AI 사진 분석 결과
             </p>
             <p className="mb-1">
@@ -322,13 +340,13 @@ export default function ReportTab({ selectedRisk, species }: Props) {
             <p style={{ color: "var(--text-secondary)" }}>{result.analysis.full_observation}</p>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={handleSummaryPdf}
               disabled={generatingSummary}
-              className="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ background: "var(--good)" }}
+              className="tap-target flex-1 rounded-2xl px-5 py-4 text-lg font-extrabold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ background: "var(--good)", minHeight: 56 }}
             >
               {generatingSummary ? "생성 중..." : "참고용 요약본 보기"}
             </button>
@@ -336,8 +354,8 @@ export default function ReportTab({ selectedRisk, species }: Props) {
               type="button"
               onClick={handleOfficialPdf}
               disabled={generatingOfficial}
-              className="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ background: "var(--accent)" }}
+              className="tap-target flex-1 rounded-2xl px-5 py-4 text-lg font-extrabold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ background: "var(--accent)", minHeight: 56 }}
             >
               {generatingOfficial ? "생성 중..." : "공식 서식에 맞춰 보기"}
             </button>
@@ -345,34 +363,34 @@ export default function ReportTab({ selectedRisk, species }: Props) {
 
           {summaryError && (
             <div
-              className="flex items-center justify-between gap-3 rounded-lg p-3 text-sm"
-              style={{ background: "color-mix(in srgb, var(--critical) 10%, transparent)", color: "var(--critical)" }}
+              className="flex items-center justify-between gap-3 rounded-2xl p-4 text-lg font-semibold"
+              style={{ background: "color-mix(in srgb, var(--critical) 14%, transparent)", color: "var(--critical)" }}
             >
               <span>{summaryError}</span>
               <button
                 type="button"
                 onClick={handleSummaryPdf}
-                className="flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold text-white"
+                className="tap-target flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-base font-bold text-white"
                 style={{ background: "var(--critical)" }}
               >
-                <RotateCcw size={12} />
+                <RotateCcw size={16} />
                 재시도
               </button>
             </div>
           )}
           {summaryUrl && (
             <div
-              className="flex items-center justify-between rounded-lg p-4"
-              style={{ background: "color-mix(in srgb, var(--good) 10%, transparent)" }}
+              className="flex items-center justify-between gap-3 rounded-2xl p-4"
+              style={{ background: "color-mix(in srgb, var(--good) 14%, transparent)" }}
             >
-              <span className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--good)" }}>
-                <CheckCircle2 size={18} />
-                참고용 요약본이 생성되었습니다
+              <span className="flex items-center gap-2 text-lg font-bold" style={{ color: "var(--good)" }}>
+                <CheckCircle2 size={22} />
+                참고용 요약본이 생성됐어요
               </span>
               <a
                 href={summaryUrl}
                 download="damage_report_summary.pdf"
-                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
+                className="tap-target rounded-xl px-4 py-2.5 text-base font-bold text-white"
                 style={{ background: "var(--good)" }}
               >
                 PDF 다운로드
@@ -382,34 +400,34 @@ export default function ReportTab({ selectedRisk, species }: Props) {
 
           {officialError && (
             <div
-              className="flex items-center justify-between gap-3 rounded-lg p-3 text-sm"
-              style={{ background: "color-mix(in srgb, var(--critical) 10%, transparent)", color: "var(--critical)" }}
+              className="flex items-center justify-between gap-3 rounded-2xl p-4 text-lg font-semibold"
+              style={{ background: "color-mix(in srgb, var(--critical) 14%, transparent)", color: "var(--critical)" }}
             >
               <span>{officialError}</span>
               <button
                 type="button"
                 onClick={handleOfficialPdf}
-                className="flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold text-white"
+                className="tap-target flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-base font-bold text-white"
                 style={{ background: "var(--critical)" }}
               >
-                <RotateCcw size={12} />
+                <RotateCcw size={16} />
                 재시도
               </button>
             </div>
           )}
           {officialUrl && (
             <div
-              className="flex items-center justify-between rounded-lg p-4"
-              style={{ background: "color-mix(in srgb, var(--accent) 10%, transparent)" }}
+              className="flex items-center justify-between gap-3 rounded-2xl p-4"
+              style={{ background: "color-mix(in srgb, var(--accent) 14%, transparent)" }}
             >
-              <span className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--accent)" }}>
-                <CheckCircle2 size={18} />
-                공식 서식 오버레이가 생성되었습니다 (제출용 도우미)
+              <span className="flex items-center gap-2 text-lg font-bold" style={{ color: "var(--accent)" }}>
+                <CheckCircle2 size={22} />
+                공식 서식(제출용)이 생성됐어요
               </span>
               <a
                 href={officialUrl}
                 download="damage_report_official.pdf"
-                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
+                className="tap-target rounded-xl px-4 py-2.5 text-base font-bold text-white"
                 style={{ background: "var(--accent)" }}
               >
                 PDF 다운로드
