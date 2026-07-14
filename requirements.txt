@@ -16,5 +16,9 @@ anthropic>=0.34
 # 신고서 PDF 생성
 fpdf2>=2.7
 
+# 원본 정부 서식(자연재난 피해신고서) 오버레이
+pypdf>=6.0
+reportlab>=5.0
+
 # 환경변수 관리
 python-dotenv>=1.0
