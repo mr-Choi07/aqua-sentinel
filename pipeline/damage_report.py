@@ -64,7 +64,9 @@ class PhotoAnalysis(BaseModel):
 # 관측 위험도가 "정상"인데 사진 소견에 대량 폐사를 시사하는 표현이 있으면 불일치로
 # 간주한다. 키워드 매칭 휴리스틱이라 정교하지 않다 — 없다고 피해가 없는 것도, 있다고
 # 반드시 심각한 것도 아니다(docs/damage_report_template.md 5장 참고).
-MASS_MORTALITY_KEYWORDS = ["대량", "다수", "폐사체", "떼죽음", "집단 폐사", "수백", "수천"]
+# "폐사체"는 넣지 않는다 — 죽은 개체를 가리키는 일반 용어라 "1마리만 죽었다"는
+# 서술에도 등장해서, 실제 테스트에서 규모와 무관하게 항상 걸리는 오탐이 확인됐다.
+MASS_MORTALITY_KEYWORDS = ["대량", "다수", "떼죽음", "집단 폐사", "수백", "수천"]
 
 
 def get_client() -> anthropic.Anthropic:
@@ -96,7 +98,9 @@ def analyze_damage_photo(image_path: str, species: str, region: str) -> PhotoAna
 
     response = client.messages.parse(
         model=MODEL,
-        max_tokens=512,
+        # 구조화 출력(JSON)은 스키마 오버헤드가 있어 512로는 가끔 잘려서 파싱
+        # 에러가 났다 — 여유를 두어 1024로.
+        max_tokens=1024,
         system=ANALYSIS_SYSTEM_PROMPT,
         messages=[
             {

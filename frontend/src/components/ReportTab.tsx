@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, ImagePlus, X } from "lucide-react";
-import type { RiskResult } from "../api";
-import { submitDamageReport } from "../api";
+import { AlertTriangle, CheckCircle2, ImagePlus, RotateCcw, X } from "lucide-react";
+import type { AnalyzeReportResult, RiskResult } from "../api";
+import { analyzeDamagePhoto, fetchOfficialPdf, fetchSummaryPdf } from "../api";
 
 interface Props {
   selectedRisk: RiskResult | null;
@@ -17,10 +17,19 @@ export default function ReportTab({ selectedRisk, species }: Props) {
   const [licenseNo, setLicenseNo] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [result, setResult] = useState<AnalyzeReportResult | null>(null);
+
+  const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [summaryUrl, setSummaryUrl] = useState<string | null>(null);
+
+  const [generatingOfficial, setGeneratingOfficial] = useState(false);
+  const [officialError, setOfficialError] = useState<string | null>(null);
+  const [officialUrl, setOfficialUrl] = useState<string | null>(null);
 
   if (!selectedRisk) {
     return (
@@ -35,33 +44,74 @@ export default function ReportTab({ selectedRisk, species }: Props) {
     setPreviewUrl(file ? URL.createObjectURL(file) : null);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function runAnalysis() {
     if (!selectedRisk) return;
     if (!photo) {
-      setError("사진을 업로드해주세요.");
+      setAnalyzeError("사진을 업로드해주세요.");
       return;
     }
-    setLoading(true);
-    setError(null);
-    setPdfUrl(null);
+    setAnalyzing(true);
+    setAnalyzeError(null);
+    setResult(null);
+    setSummaryUrl(null);
+    setOfficialUrl(null);
     try {
-      const blob = await submitDamageReport({
-        sta_cde: selectedRisk.sta_cde,
-        species,
-        owner,
-        contact,
-        address,
-        farm_name: farmName,
-        farm_area_ha: farmAreaHa,
-        license_no: licenseNo,
-        photo,
-      });
-      setPdfUrl(URL.createObjectURL(blob));
+      const res = await analyzeDamagePhoto({ sta_cde: selectedRisk.sta_cde, species, photo });
+      setResult(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setAnalyzeError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      setAnalyzing(false);
+    }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    runAnalysis();
+  }
+
+  function buildParams(res: AnalyzeReportResult) {
+    return {
+      request_id: res.request_id,
+      photo_filename: res.photo_filename,
+      sta_cde: selectedRisk!.sta_cde,
+      species,
+      owner,
+      contact,
+      address,
+      farm_name: farmName,
+      farm_area_ha: farmAreaHa,
+      license_no: licenseNo,
+      risk: res.risk,
+      analysis: res.analysis,
+    };
+  }
+
+  async function handleSummaryPdf() {
+    if (!result) return;
+    setGeneratingSummary(true);
+    setSummaryError(null);
+    try {
+      const blob = await fetchSummaryPdf(buildParams(result));
+      setSummaryUrl(URL.createObjectURL(blob));
+    } catch (e) {
+      setSummaryError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGeneratingSummary(false);
+    }
+  }
+
+  async function handleOfficialPdf() {
+    if (!result) return;
+    setGeneratingOfficial(true);
+    setOfficialError(null);
+    try {
+      const blob = await fetchOfficialPdf(buildParams(result));
+      setOfficialUrl(URL.createObjectURL(blob));
+    } catch (e) {
+      setOfficialError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGeneratingOfficial(false);
     }
   }
 
@@ -215,35 +265,157 @@ export default function ReportTab({ selectedRisk, species }: Props) {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={analyzing}
           className="w-fit rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           style={{ background: "var(--accent)", boxShadow: "var(--shadow-sm)" }}
         >
-          {loading ? "사진 분석 및 초안 생성 중..." : "신고서 초안 생성"}
+          {analyzing ? "사진 분석 중..." : "사진 분석하기"}
         </button>
       </form>
 
-      {error && <p className="mt-3" style={{ color: "var(--critical)" }}>{error}</p>}
-      {pdfUrl && (
+      {analyzeError && (
         <div
-          className="mt-4 flex items-center justify-between rounded-lg p-4"
-          style={{ background: "color-mix(in srgb, var(--good) 10%, transparent)" }}
+          className="mt-3 flex items-center justify-between gap-3 rounded-lg p-3 text-sm"
+          style={{ background: "color-mix(in srgb, var(--critical) 10%, transparent)", color: "var(--critical)" }}
         >
-          <span
-            className="flex items-center gap-2 text-sm font-medium"
-            style={{ color: "var(--good)" }}
+          <span>{analyzeError}</span>
+          <button
+            type="button"
+            onClick={runAnalysis}
+            className="flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold text-white"
+            style={{ background: "var(--critical)" }}
           >
-            <CheckCircle2 size={18} />
-            초안이 생성되었습니다
-          </span>
-          <a
-            href={pdfUrl}
-            download="damage_report.pdf"
-            className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
-            style={{ background: "var(--good)" }}
+            <RotateCcw size={12} />
+            재시도
+          </button>
+        </div>
+      )}
+
+      {result && (
+        <div className="mt-5 flex flex-col gap-3">
+          {result.inconsistent && (
+            <div
+              className="flex items-start gap-2 rounded-lg p-3 text-sm font-medium"
+              style={{ background: "color-mix(in srgb, var(--critical) 12%, transparent)", color: "var(--critical)" }}
+            >
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <span>
+                관측 수온은 정상 범위이지만 사진 소견은 대량 폐사를 시사합니다. 관측 데이터와
+                사진 소견이 다를 수 있으니 신고 전 반드시 확인하세요.
+              </span>
+            </div>
+          )}
+
+          <div
+            className="rounded-lg border p-4 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
           >
-            PDF 다운로드
-          </a>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+              AI 사진 분석 결과
+            </p>
+            <p className="mb-1">
+              <strong>피해물량(AI 추정):</strong> {result.analysis.quantity_estimate}
+            </p>
+            <p className="mb-2">
+              <strong>피해 원인(AI 추정):</strong> {result.analysis.cause_estimate}
+            </p>
+            <p style={{ color: "var(--text-secondary)" }}>{result.analysis.full_observation}</p>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={handleSummaryPdf}
+              disabled={generatingSummary}
+              className="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ background: "var(--good)" }}
+            >
+              {generatingSummary ? "생성 중..." : "참고용 요약본 보기"}
+            </button>
+            <button
+              type="button"
+              onClick={handleOfficialPdf}
+              disabled={generatingOfficial}
+              className="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ background: "var(--accent)" }}
+            >
+              {generatingOfficial ? "생성 중..." : "공식 서식에 맞춰 보기"}
+            </button>
+          </div>
+
+          {summaryError && (
+            <div
+              className="flex items-center justify-between gap-3 rounded-lg p-3 text-sm"
+              style={{ background: "color-mix(in srgb, var(--critical) 10%, transparent)", color: "var(--critical)" }}
+            >
+              <span>{summaryError}</span>
+              <button
+                type="button"
+                onClick={handleSummaryPdf}
+                className="flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold text-white"
+                style={{ background: "var(--critical)" }}
+              >
+                <RotateCcw size={12} />
+                재시도
+              </button>
+            </div>
+          )}
+          {summaryUrl && (
+            <div
+              className="flex items-center justify-between rounded-lg p-4"
+              style={{ background: "color-mix(in srgb, var(--good) 10%, transparent)" }}
+            >
+              <span className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--good)" }}>
+                <CheckCircle2 size={18} />
+                참고용 요약본이 생성되었습니다
+              </span>
+              <a
+                href={summaryUrl}
+                download="damage_report_summary.pdf"
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
+                style={{ background: "var(--good)" }}
+              >
+                PDF 다운로드
+              </a>
+            </div>
+          )}
+
+          {officialError && (
+            <div
+              className="flex items-center justify-between gap-3 rounded-lg p-3 text-sm"
+              style={{ background: "color-mix(in srgb, var(--critical) 10%, transparent)", color: "var(--critical)" }}
+            >
+              <span>{officialError}</span>
+              <button
+                type="button"
+                onClick={handleOfficialPdf}
+                className="flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold text-white"
+                style={{ background: "var(--critical)" }}
+              >
+                <RotateCcw size={12} />
+                재시도
+              </button>
+            </div>
+          )}
+          {officialUrl && (
+            <div
+              className="flex items-center justify-between rounded-lg p-4"
+              style={{ background: "color-mix(in srgb, var(--accent) 10%, transparent)" }}
+            >
+              <span className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--accent)" }}>
+                <CheckCircle2 size={18} />
+                공식 서식 오버레이가 생성되었습니다 (제출용 도우미)
+              </span>
+              <a
+                href={officialUrl}
+                download="damage_report_official.pdf"
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
+                style={{ background: "var(--accent)" }}
+              >
+                PDF 다운로드
+              </a>
+            </div>
+          )}
         </div>
       )}
     </div>

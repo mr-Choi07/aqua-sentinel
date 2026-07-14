@@ -33,8 +33,27 @@ export interface RedtideBulletin {
   max_watertemp: string;
 }
 
+async function fetchWithTimeout(
+  input: string,
+  init: RequestInit = {},
+  timeoutMs = 15000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error("요청 시간이 초과되었습니다. 다시 시도해주세요.");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function getJSON<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`);
+  const res = await fetchWithTimeout(`${API_BASE}${path}`);
   if (!res.ok) throw new Error(`API 오류 (${res.status}): ${path}`);
   return res.json();
 }
@@ -49,17 +68,57 @@ export const fetchRisk = (species: string) =>
 export const fetchRedtide = () => getJSON<RedtideBulletin[]>("/api/redtide");
 
 export async function fetchCoachMessage(sta_cde: string, species: string): Promise<string> {
-  const res = await fetch(`${API_BASE}/api/coach`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sta_cde, species }),
-  });
+  const res = await fetchWithTimeout(
+    `${API_BASE}/api/coach`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sta_cde, species }),
+    },
+    45000 // Claude 호출 포함 — 여유 있게
+  );
   if (!res.ok) throw new Error(`대응 코치 호출 실패 (${res.status})`);
   const data = await res.json();
   return data.message as string;
 }
 
-export async function submitDamageReport(params: {
+export interface PhotoAnalysisResult {
+  quantity_estimate: string;
+  cause_estimate: string;
+  full_observation: string;
+}
+
+export interface AnalyzeReportResult {
+  request_id: string;
+  photo_filename: string;
+  region: string;
+  risk: RiskResult;
+  analysis: PhotoAnalysisResult;
+  inconsistent: boolean;
+}
+
+export async function analyzeDamagePhoto(params: {
+  sta_cde: string;
+  species: string;
+  photo: File;
+}): Promise<AnalyzeReportResult> {
+  const form = new FormData();
+  form.append("sta_cde", params.sta_cde);
+  form.append("species", params.species);
+  form.append("photo", params.photo);
+
+  const res = await fetchWithTimeout(
+    `${API_BASE}/api/damage-report/analyze`,
+    { method: "POST", body: form },
+    45000 // Claude 비전 호출 — 여유 있게
+  );
+  if (!res.ok) throw new Error(`사진 분석 실패 (${res.status})`);
+  return res.json();
+}
+
+export interface ReportGenerateParams {
+  request_id: string;
+  photo_filename: string;
   sta_cde: string;
   species: string;
   owner: string;
@@ -68,23 +127,26 @@ export async function submitDamageReport(params: {
   farm_name: string;
   farm_area_ha: string;
   license_no: string;
-  photo: File;
-}): Promise<Blob> {
-  const form = new FormData();
-  form.append("sta_cde", params.sta_cde);
-  form.append("species", params.species);
-  form.append("owner", params.owner);
-  form.append("contact", params.contact);
-  form.append("address", params.address);
-  form.append("farm_name", params.farm_name);
-  form.append("farm_area_ha", params.farm_area_ha);
-  form.append("license_no", params.license_no);
-  form.append("photo", params.photo);
+  risk: RiskResult;
+  analysis: PhotoAnalysisResult;
+}
 
-  const res = await fetch(`${API_BASE}/api/damage-report`, {
-    method: "POST",
-    body: form,
-  });
-  if (!res.ok) throw new Error(`보고서 생성 실패 (${res.status})`);
+async function fetchReportPdf(path: string, params: ReportGenerateParams): Promise<Blob> {
+  const res = await fetchWithTimeout(
+    `${API_BASE}${path}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    },
+    20000 // 로컬 PDF 렌더링만 — API 재호출 없음
+  );
+  if (!res.ok) throw new Error(`PDF 생성 실패 (${res.status})`);
   return res.blob();
 }
+
+export const fetchSummaryPdf = (params: ReportGenerateParams) =>
+  fetchReportPdf("/api/damage-report/summary-pdf", params);
+
+export const fetchOfficialPdf = (params: ReportGenerateParams) =>
+  fetchReportPdf("/api/damage-report/official-pdf", params);
