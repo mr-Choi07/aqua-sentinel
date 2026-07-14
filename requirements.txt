@@ -20,5 +20,8 @@ fpdf2>=2.7
 pypdf>=6.0
 reportlab>=5.0
 
+# 오버레이 PDF 시각 검증용 PNG 렌더링 (Poppler/pdftoppm 미설치 환경 대체)
+pymupdf>=1.24
+
 # 환경변수 관리
 python-dotenv>=1.0

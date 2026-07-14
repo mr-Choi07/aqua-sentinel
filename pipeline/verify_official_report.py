@@ -8,6 +8,10 @@ pdftotext(Poppler)가 설치되어 있지 않아도 동작하도록 pypdf.extrac
 3. 어떤 draw도 금지 구역(FORBIDDEN_ZONES — 확정/피해구분/융자신청/서명/
    가족수 등/뒤쪽 페이지)과 겹치지 않는지
 4. 참고용으로 pypdf 텍스트 추출 결과에 채운 값이 실제로 보이는지
+
+시각 확인용으로 각 페이지를 PNG로도 렌더링한다. 원래 pdftoppm(Poppler)을
+쓰려 했으나 이 환경에는 Poppler가 설치되어 있지 않아, 대신 순수 파이썬
+패키지인 PyMuPDF(fitz)로 렌더링한다 — 결과물(페이지별 PNG)은 동일하다.
 """
 
 import sys
@@ -15,9 +19,24 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+import fitz  # PyMuPDF — Poppler(pdftoppm) 미설치 환경이라 대신 사용
 from pypdf import PdfReader
 
 from pipeline.damage_report_official import FORBIDDEN_ZONES, DrawRecord, OverlayResult
+
+
+def render_pages_to_png(pdf_path: str, out_dir: str, dpi: int = 200) -> list[str]:
+    """PDF의 각 페이지를 PNG로 렌더링해 out_dir에 저장하고 경로 목록을 반환한다."""
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+    doc = fitz.open(pdf_path)
+    stem = Path(pdf_path).stem
+    paths = []
+    for i, page in enumerate(doc, start=1):
+        pix = page.get_pixmap(dpi=dpi)
+        out_path = str(Path(out_dir) / f"{stem}_page{i}.png")
+        pix.save(out_path)
+        paths.append(out_path)
+    return paths
 
 
 def verify(result: OverlayResult, farm_info: dict, ai_analysis) -> list[str]:
@@ -107,3 +126,8 @@ if __name__ == "__main__":
         print(f"검증 통과 — {result.output_path}")
         if result.license_no_footnote:
             print("각주 경로 사용됨:", result.license_no_footnote)
+
+    png_paths = render_pages_to_png(result.output_path, out_dir="data")
+    print("시각 확인용 PNG 저장:")
+    for p in png_paths:
+        print(" -", p)
