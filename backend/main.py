@@ -24,7 +24,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from pipeline.coach import generate_coaching_message
 from pipeline.collect_kosha import TARGET_STATIONS, fetch_realtime_temperature
-from pipeline.collect_redtide import fetch_redtide_info, filter_target_region
+from pipeline.collect_redtide import fetch_redtide_info, filter_target_region, is_region_affected
 from pipeline.damage_report import PhotoAnalysis, analyze_damage_photo, build_damage_report, detect_inconsistency
 from pipeline.damage_report_official import build_official_overlay
 from pipeline.db import insert_readings, save_push_subscription
@@ -116,7 +116,11 @@ def post_coach(req: CoachRequest) -> dict:
         raise HTTPException(400, f"알 수 없는 관측소 코드입니다: {req.sta_cde}")
     region = TARGET_STATIONS[req.sta_cde]
     risk_result = classify_all_stations([req.sta_cde], species=req.species)[0]
-    message = generate_coaching_message(risk_result=risk_result, species=req.species, region=region)
+    redtide_records = filter_target_region(fetch_redtide_info())
+    redtide_nearby = is_region_affected(region, TARGET_STATIONS, redtide_records)
+    message = generate_coaching_message(
+        risk_result=risk_result, species=req.species, region=region, redtide_nearby=redtide_nearby
+    )
     return {"message": message}
 
 

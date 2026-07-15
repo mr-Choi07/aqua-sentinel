@@ -103,6 +103,39 @@ def filter_target_region(records: list[dict]) -> list[dict]:
     ]
 
 
+# 통영시 관할 읍·면 지명은 적조속보 원문에 "통영" 대신 이렇게 표기되는 경우가 있어
+# (예: "산양읍 장군봉 내만") 시군명만으로 매칭하면 놓친다 — frontend/src/components/
+# RedtideTab.tsx의 EXTRA_ALIASES와 동일한 목록을 유지한다(코치가 "내 어장 근처 적조
+# 여부"를 판단할 때도 같은 근사 로직을 써야 판단이 화면과 어긋나지 않는다).
+EXTRA_ALIASES: dict[str, list[str]] = {
+    "통영": ["산양읍", "장군봉"],
+}
+
+
+def _city_of(region: str) -> str:
+    return region.split(" ")[0]
+
+
+def build_alias_map(stations: dict[str, str]) -> dict[str, list[str]]:
+    alias_map: dict[str, list[str]] = {}
+    for region in stations.values():
+        city, *rest = region.split(" ")
+        alias_map.setdefault(city, [city])
+        if rest:
+            alias_map[city].append(" ".join(rest))
+    for city, extra in EXTRA_ALIASES.items():
+        alias_map[city] = list(dict.fromkeys(alias_map.get(city, [city]) + extra))
+    return alias_map
+
+
+def is_region_affected(region: str, stations: dict[str, str], redtide_records: list[dict]) -> bool:
+    """이 관측소의 지역이 최근 적조 속보의 조사해역과 지명이 겹치는지 근사 판단한다.
+    위경도 반경 계산이 아닌 텍스트 근사치(RedtideTab.tsx와 동일한 방식)."""
+    alias_map = build_alias_map(stations)
+    aliases = alias_map.get(_city_of(region), [])
+    return any(any(alias in r.get("txt_seas", "") for alias in aliases) for r in redtide_records)
+
+
 def save_to_csv(records: list[dict], output_dir: str = "data") -> str:
     """수집한 데이터를 /data 에 타임스탬프가 포함된 CSV로 저장한다."""
     df = pd.DataFrame(records)

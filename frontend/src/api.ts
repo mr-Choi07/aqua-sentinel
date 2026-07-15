@@ -87,7 +87,91 @@ export async function subscribePush(params: {
   if (!res.ok) throw new Error(`알림 구독 실패 (${res.status})`);
 }
 
-export async function fetchCoachMessage(sta_cde: string, species: string): Promise<string> {
+export type CoachUrgency = "now" | "today" | "monitor";
+
+export interface CoachAction {
+  title: string;
+  detail: string;
+  urgency: CoachUrgency;
+}
+
+export interface CoachAdvice {
+  situation_summary: string;
+  actions: CoachAction[];
+  contact_note: string | null;
+}
+
+// 코치가 절대 하면 안 되는 말(향후 수온 전망/하강 시점 등 예측성 문구)이 새어
+// 나왔을 때 화면에 노출되지 않도록 코드로도 한 번 더 거른다 — 시스템 프롬프트만
+// 믿지 않는 이중 방어.
+const FORBIDDEN_PREDICTIVE_PATTERNS = [
+  /\d+\s*시간\s*(이내|안에|후)/,
+  /\d+\s*일\s*(이내|안에|뒤|후)/,
+  /하강\s*(예상|전망|할\s*것)/,
+  /상승\s*(예상|전망|할\s*것)/,
+  /(으로|로)\s*예상됩니다/,
+  /예측/,
+  /전망/,
+];
+
+function hasForbiddenPrediction(text: string): boolean {
+  return FORBIDDEN_PREDICTIVE_PATTERNS.some((p) => p.test(text));
+}
+
+// contact_note에 실존 여부를 확인할 수 없는 전화번호를 지어내는 경우가 실제로
+// 관측됐다(예: 존재 여부 미확인 국번) — 기관명 안내는 유용하지만 지어낸 번호는
+// 위험하므로, 전화번호처럼 보이는 패턴이 있으면 그 문장 자체를 통째로 버린다.
+const PHONE_NUMBER_PATTERN = /\d{2,4}[-.]\d{3,4}[-.]\d{4}/;
+
+function hasFabricatedContact(text: string): boolean {
+  return PHONE_NUMBER_PATTERN.test(text);
+}
+
+function stripJsonFence(raw: string): string {
+  const trimmed = raw.trim();
+  const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  return fenceMatch ? fenceMatch[1].trim() : trimmed;
+}
+
+const VALID_URGENCIES: CoachUrgency[] = ["now", "today", "monitor"];
+
+/** 원문 문자열을 파싱해 CoachAdvice로 만든다. 형식이 어긋나면 예외를 던진다 —
+ * 파싱 실패한 원문 자체는 호출부가 화면에 노출하지 않는다. */
+function parseCoachAdvice(raw: string): CoachAdvice {
+  const cleaned = stripJsonFence(raw);
+  const parsed = JSON.parse(cleaned);
+
+  if (!parsed || typeof parsed.situation_summary !== "string" || !Array.isArray(parsed.actions)) {
+    throw new Error("응답 형식이 올바르지 않습니다.");
+  }
+
+  const rawActions: unknown[] = Array.isArray(parsed.actions) ? parsed.actions : [];
+  const actions: CoachAction[] = rawActions
+    .filter(
+      (a: unknown): a is { title: string; detail: string; urgency?: string } =>
+        !!a &&
+        typeof (a as Record<string, unknown>).title === "string" &&
+        typeof (a as Record<string, unknown>).detail === "string"
+    )
+    .filter((a) => !hasForbiddenPrediction(a.title) && !hasForbiddenPrediction(a.detail))
+    .slice(0, 4)
+    .map((a) => ({
+      title: a.title,
+      detail: a.detail,
+      urgency: VALID_URGENCIES.includes(a.urgency as CoachUrgency) ? (a.urgency as CoachUrgency) : "monitor",
+    }));
+
+  const contactNote =
+    typeof parsed.contact_note === "string" &&
+    !hasForbiddenPrediction(parsed.contact_note) &&
+    !hasFabricatedContact(parsed.contact_note)
+      ? parsed.contact_note
+      : null;
+
+  return { situation_summary: parsed.situation_summary, actions, contact_note: contactNote };
+}
+
+async function requestCoachRaw(sta_cde: string, species: string): Promise<string> {
   const res = await fetchWithTimeout(
     `${API_BASE}/api/coach`,
     {
@@ -100,6 +184,22 @@ export async function fetchCoachMessage(sta_cde: string, species: string): Promi
   if (!res.ok) throw new Error(`대응 코치 호출 실패 (${res.status})`);
   const data = await res.json();
   return data.message as string;
+}
+
+export async function fetchCoachAdvice(sta_cde: string, species: string): Promise<CoachAdvice> {
+  const first = await requestCoachRaw(sta_cde, species);
+  try {
+    return parseCoachAdvice(first);
+  } catch {
+    // 같은 문자열을 다시 파싱해봤자 의미가 없으므로, 파싱 실패 시에는 API를
+    // 한 번 더 호출해서 새 응답으로 재시도한다.
+    const second = await requestCoachRaw(sta_cde, species);
+    try {
+      return parseCoachAdvice(second);
+    } catch {
+      throw new Error("안내를 불러오지 못했어요. 다시 시도해 주세요.");
+    }
+  }
 }
 
 export interface PhotoAnalysisResult {
