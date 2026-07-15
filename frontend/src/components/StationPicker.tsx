@@ -1,5 +1,5 @@
-import { ArrowLeft, Check } from "lucide-react";
-import type { RiskResult } from "../api";
+import { ArrowLeft, Check, ChevronRight, MapPin, Plus } from "lucide-react";
+import type { Farm, RiskResult } from "../api";
 import Badge from "./Badge";
 
 interface Props {
@@ -10,6 +10,8 @@ interface Props {
   selectedStation: string;
   onSelectStation: (sta_cde: string) => void;
   onBack: () => void;
+  registeredFarm: Farm | null;
+  onOpenFarmRegister: () => void;
 }
 
 export default function StationPicker({
@@ -20,6 +22,8 @@ export default function StationPicker({
   selectedStation,
   onSelectStation,
   onBack,
+  registeredFarm,
+  onOpenFarmRegister,
 }: Props) {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5 px-4 py-6">
@@ -31,6 +35,45 @@ export default function StationPicker({
         <ArrowLeft size={24} />
         홈으로
       </button>
+
+      <button
+        onClick={onOpenFarmRegister}
+        className="tap-target flex w-full items-center gap-3 rounded-2xl px-5 py-4 text-left"
+        style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)", minHeight: 56 }}
+      >
+        <Plus size={22} style={{ color: "var(--accent)" }} />
+        <span className="flex-1 text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+          {registeredFarm ? "내 어장 위치 다시 등록하기" : "내 어장 위치로 등록하기"}
+        </span>
+        <ChevronRight size={22} style={{ color: "var(--text-muted)" }} />
+      </button>
+
+      {registeredFarm && (
+        <button
+          onClick={() => onSelectStation(registeredFarm.sta_cde)}
+          className="tap-target flex items-center gap-3 rounded-2xl px-5 py-4 text-left"
+          style={{
+            background:
+              registeredFarm.sta_cde === selectedStation
+                ? "color-mix(in srgb, var(--accent) 14%, var(--surface))"
+                : "var(--surface)",
+            border: "2px solid var(--accent)",
+            boxShadow: "var(--shadow-sm)",
+            minHeight: 56,
+          }}
+        >
+          <MapPin size={22} style={{ color: "var(--accent)" }} />
+          <span className="flex-1">
+            <span className="block text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+              {registeredFarm.name}
+            </span>
+            <span className="block text-sm" style={{ color: "var(--text-secondary)" }}>
+              {registeredFarm.region} 관측소 · 약 {registeredFarm.distance_km}km
+            </span>
+          </span>
+          {registeredFarm.sta_cde === selectedStation && <Check size={22} style={{ color: "var(--accent)" }} />}
+        </button>
+      )}
 
       <div>
         <p className="mb-2 text-sm font-semibold" style={{ color: "var(--text-muted)" }}>
@@ -56,7 +99,7 @@ export default function StationPicker({
 
       <div>
         <p className="mb-2 text-xl font-extrabold" style={{ color: "var(--text-primary)" }}>
-          내 어장을 골라주세요
+          관측소에서 직접 골라주세요
         </p>
         <div className="flex flex-col gap-2.5">
           {stations.map((s) => {
