@@ -70,6 +70,23 @@ export const fetchRisk = (species: string) =>
 
 export const fetchRedtide = () => getJSON<RedtideBulletin[]>("/api/redtide");
 
+export const fetchVapidPublicKey = () => getJSON<{ key: string }>("/api/push/vapid-public-key");
+
+export async function subscribePush(params: {
+  sta_cde: string;
+  species: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}): Promise<void> {
+  const res = await fetchWithTimeout(`${API_BASE}/api/push/subscribe`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`알림 구독 실패 (${res.status})`);
+}
+
 export async function fetchCoachMessage(sta_cde: string, species: string): Promise<string> {
   const res = await fetchWithTimeout(
     `${API_BASE}/api/coach`,

@@ -27,7 +27,8 @@ from pipeline.collect_kosha import TARGET_STATIONS, fetch_realtime_temperature
 from pipeline.collect_redtide import fetch_redtide_info, filter_target_region
 from pipeline.damage_report import PhotoAnalysis, analyze_damage_photo, build_damage_report, detect_inconsistency
 from pipeline.damage_report_official import build_official_overlay
-from pipeline.db import insert_readings
+from pipeline.db import insert_readings, save_push_subscription
+from pipeline.push import get_vapid_public_key
 from pipeline.risk import SPECIES_THRESHOLDS, classify_all_stations
 
 app = FastAPI(title="어장지킴이 API")
@@ -81,6 +82,27 @@ def get_risk(species: str = "일반(기본)") -> list[dict]:
 def get_redtide() -> list[dict]:
     records = fetch_redtide_info()
     return filter_target_region(records)
+
+
+@app.get("/api/push/vapid-public-key")
+def get_vapid_key() -> dict:
+    return {"key": get_vapid_public_key()}
+
+
+class PushSubscribeRequest(BaseModel):
+    sta_cde: str
+    species: str = "일반(기본)"
+    endpoint: str
+    p256dh: str
+    auth: str
+
+
+@app.post("/api/push/subscribe")
+def post_push_subscribe(req: PushSubscribeRequest) -> dict:
+    if req.sta_cde not in TARGET_STATIONS:
+        raise HTTPException(400, f"알 수 없는 관측소 코드입니다: {req.sta_cde}")
+    save_push_subscription(req.endpoint, req.p256dh, req.auth, req.sta_cde, req.species)
+    return {"ok": True}
 
 
 class CoachRequest(BaseModel):

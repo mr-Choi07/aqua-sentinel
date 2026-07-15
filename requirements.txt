@@ -25,3 +25,6 @@ pymupdf>=1.24
 
 # 환경변수 관리
 python-dotenv>=1.0
+
+# 웹 푸시 알림 (VAPID 키 생성 + 발송)
+pywebpush>=2.0

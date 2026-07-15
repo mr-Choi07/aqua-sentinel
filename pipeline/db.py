@@ -45,6 +45,20 @@ def init_db() -> None:
             "CREATE INDEX IF NOT EXISTS idx_readings_station_time "
             "ON temperature_readings (sta_cde, obs_lay, observed_at)"
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                endpoint TEXT NOT NULL UNIQUE,
+                p256dh TEXT NOT NULL,
+                auth TEXT NOT NULL,
+                sta_cde TEXT NOT NULL,
+                species TEXT NOT NULL,
+                last_level TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
 
 
 def insert_readings(records: list[dict], region_map: dict[str, str]) -> int:
@@ -104,3 +118,44 @@ def get_recent_readings(sta_cde: str, obs_lay: str = "1", hours: int = 72) -> li
             (sta_cde, obs_lay, cutoff),
         )
         return cursor.fetchall()
+
+
+def save_push_subscription(endpoint: str, p256dh: str, auth: str, sta_cde: str, species: str) -> None:
+    """구독 정보를 저장한다. 같은 endpoint(=같은 브라우저 설치)로 다시 구독하면
+    감시 대상(어장/어종)만 최신 값으로 덮어쓴다 — last_level은 유지해서, 이미
+    경보 상태였던 걸 재구독했다고 알림이 또 나가지 않게 한다."""
+    init_db()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO push_subscriptions (endpoint, p256dh, auth, sta_cde, species, last_level, created_at)
+            VALUES (?, ?, ?, ?, ?, NULL, ?)
+            ON CONFLICT(endpoint) DO UPDATE SET
+                p256dh = excluded.p256dh,
+                auth = excluded.auth,
+                sta_cde = excluded.sta_cde,
+                species = excluded.species
+            """,
+            (endpoint, p256dh, auth, sta_cde, species, datetime.now().isoformat(timespec="seconds")),
+        )
+
+
+def delete_push_subscription(endpoint: str) -> None:
+    """구독이 만료/무효화된 경우(발송 시 410/404 응답) 정리용."""
+    init_db()
+    with get_connection() as conn:
+        conn.execute("DELETE FROM push_subscriptions WHERE endpoint = ?", (endpoint,))
+
+
+def get_all_push_subscriptions() -> list[dict]:
+    init_db()
+    with get_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.execute("SELECT * FROM push_subscriptions")
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def update_push_subscription_level(endpoint: str, level: str) -> None:
+    init_db()
+    with get_connection() as conn:
+        conn.execute("UPDATE push_subscriptions SET last_level = ? WHERE endpoint = ?", (level, endpoint))

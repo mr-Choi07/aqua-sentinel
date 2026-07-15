@@ -1,0 +1,17 @@
+{
+  "name": "어장지킴이",
+  "short_name": "어장지킴이",
+  "description": "고수온·적조 조기경보와 피해 신고서 자동 작성을 돕는 어업인용 도우미",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#1d63b8",
+  "lang": "ko",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

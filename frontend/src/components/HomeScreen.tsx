@@ -1,6 +1,8 @@
-import { ChevronRight, FileText, MapPin, MessageCircle, Waves } from "lucide-react";
+import { useState } from "react";
+import { Bell, BellRing, ChevronRight, FileText, MapPin, MessageCircle, Waves } from "lucide-react";
 import type { RiskResult } from "../api";
 import { coachButtonHint, formatObservedAt, statusOf, statusSentence, trendSentence } from "../lib/status";
+import { isPushSupported, subscribeToStationAlerts } from "../lib/push";
 
 interface Props {
   selectedRisk: RiskResult | null;
@@ -67,23 +69,70 @@ export default function HomeScreen({ selectedRisk, onOpenStationPicker, onGoCoac
   const hint = coachButtonHint(level);
   const emphasizeCoach = level === "주의" || level === "경보";
 
+  const [subscribeState, setSubscribeState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [subscribeError, setSubscribeError] = useState<string | null>(null);
+
+  async function handleSubscribe() {
+    if (!selectedRisk) return;
+    setSubscribeState("loading");
+    setSubscribeError(null);
+    try {
+      await subscribeToStationAlerts(selectedRisk.sta_cde, selectedRisk.species);
+      setSubscribeState("done");
+    } catch (e) {
+      setSubscribeState("error");
+      setSubscribeError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5 px-4 py-6">
       <h1 className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--text-primary)" }}>
         어장지킴이
       </h1>
 
-      <button
-        onClick={onOpenStationPicker}
-        className="tap-target flex w-full items-center gap-3 rounded-2xl px-5 py-4 text-left"
-        style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)", minHeight: 56 }}
-      >
-        <MapPin size={22} style={{ color: "var(--accent)" }} />
-        <span className="flex-1 text-lg font-bold" style={{ color: "var(--text-primary)" }}>
-          {selectedRisk ? selectedRisk.region : "어장을 선택해주세요"}
-        </span>
-        <ChevronRight size={22} style={{ color: "var(--text-muted)" }} />
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onOpenStationPicker}
+          className="tap-target flex flex-1 items-center gap-3 rounded-2xl px-5 py-4 text-left"
+          style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)", minHeight: 56 }}
+        >
+          <MapPin size={22} style={{ color: "var(--accent)" }} />
+          <span className="flex-1 text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+            {selectedRisk ? selectedRisk.region : "어장을 선택해주세요"}
+          </span>
+          <ChevronRight size={22} style={{ color: "var(--text-muted)" }} />
+        </button>
+
+        {selectedRisk && isPushSupported() && (
+          <button
+            onClick={handleSubscribe}
+            disabled={subscribeState === "loading" || subscribeState === "done"}
+            aria-label="이 어장 알림 받기"
+            className="tap-target flex shrink-0 items-center justify-center rounded-2xl"
+            style={{
+              width: 56,
+              height: 56,
+              background: subscribeState === "done" ? "color-mix(in srgb, var(--good) 18%, var(--surface))" : "var(--surface)",
+              boxShadow: "var(--shadow-sm)",
+              color: subscribeState === "done" ? "var(--good)" : "var(--accent)",
+            }}
+          >
+            {subscribeState === "done" ? <BellRing size={24} /> : <Bell size={24} />}
+          </button>
+        )}
+      </div>
+
+      {subscribeState === "error" && subscribeError && (
+        <p className="text-sm font-semibold" style={{ color: "var(--critical)" }}>
+          {subscribeError}
+        </p>
+      )}
+      {subscribeState === "done" && (
+        <p className="text-sm font-semibold" style={{ color: "var(--good)" }}>
+          이 어장에 위험 알림이 오면 폰으로 알려드릴게요.
+        </p>
+      )}
 
       <div
         className="flex flex-col items-center gap-2 rounded-3xl px-6 py-10 text-center"
