@@ -42,3 +42,53 @@ export function statusSentence(level: string, currentTemp: number | null): strin
       return "관측소 데이터를 아직 확인하지 못했어요";
   }
 }
+
+/** 판단 근거가 "언제" 기준인지 — 블랙박스 불신을 줄이기 위한 최소한의 투명성. */
+export function formatObservedAt(observedAt: string | null): string {
+  if (!observedAt) return "관측 정보 없음";
+  const obsDate = new Date(observedAt.replace(" ", "T"));
+  if (Number.isNaN(obsDate.getTime())) return "관측 정보 없음";
+
+  const now = new Date();
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+
+  const hour = obsDate.getHours();
+  const ampm = hour < 12 ? "오전" : "오후";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  const timeStr = `${ampm} ${hour12}시`;
+
+  if (isSameDay(obsDate, now)) return `오늘 ${timeStr} 관측 기준`;
+  if (isSameDay(obsDate, yesterday)) return `어제 ${timeStr} 관측 기준`;
+  return `${obsDate.getMonth() + 1}월 ${obsDate.getDate()}일 ${timeStr} 관측 기준`;
+}
+
+/** 카드의 빈 공간에 넣을 추세 한 줄 — "오르고 있나"가 "지금 괜찮나"만큼 중요하다. */
+export function trendSentence(
+  dayOverDayDelta: number | null,
+  risingStreakDays: number
+): string | null {
+  if (risingStreakDays >= 2) return `${risingStreakDays}일째 오르는 중 ↗`;
+  if (dayOverDayDelta !== null) {
+    const sign = dayOverDayDelta >= 0 ? "+" : "";
+    return `어제보다 ${sign}${dayOverDayDelta.toFixed(1)}°C`;
+  }
+  return null;
+}
+
+/** "무엇을 해야 하나요?" 버튼 아래 보조 문구 — 버튼 순서는 고정하되 강조만 상태에 연동한다. */
+export function coachButtonHint(level: string): { text: string; color: string } | null {
+  switch (level as RiskLevel) {
+    case "정상":
+      return { text: "지금은 특별한 조치가 필요하지 않아요", color: "var(--text-muted)" };
+    case "주의":
+      return { text: "오늘 확인하고 대응하세요", color: "var(--warning)" };
+    case "경보":
+      return { text: "지금 바로 확인하세요", color: "var(--critical)" };
+    default:
+      return null;
+  }
+}

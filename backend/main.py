@@ -52,11 +52,19 @@ def get_species() -> list[str]:
 def get_temperature() -> list[dict]:
     records = fetch_realtime_temperature()
     insert_readings(records, TARGET_STATIONS)  # 조회만으로도 이력이 누적되도록 함께 적재
+
+    result = []
     for r in records:
+        # 센서 결측 시 NIFS API가 wtr_tmp를 빈 문자열로 주는 경우가 있다 —
+        # 그 레코드만 빼고, 요청 전체가 500으로 죽는 걸 막는다.
+        try:
+            r["wtr_tmp"] = float(r["wtr_tmp"])
+        except (TypeError, ValueError):
+            continue
         r["region"] = TARGET_STATIONS.get(r["sta_cde"])
-        r["wtr_tmp"] = float(r["wtr_tmp"])
         r["obs_lay_label"] = LAYER_LABELS.get(str(r["obs_lay"]), r["obs_lay"])
-    return records
+        result.append(r)
+    return result
 
 
 @app.get("/api/risk")

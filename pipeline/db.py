@@ -48,21 +48,31 @@ def init_db() -> None:
 
 
 def insert_readings(records: list[dict], region_map: dict[str, str]) -> int:
-    """수온 관측 레코드를 저장한다. 이미 존재하는 (관측소, 층, 관측시각) 조합은 무시한다."""
+    """수온 관측 레코드를 저장한다. 이미 존재하는 (관측소, 층, 관측시각) 조합은 무시한다.
+
+    NIFS 실시간 API는 센서 결측 시 wtr_tmp를 빈 문자열로 반환하는 경우가 있다
+    (예: 정기 점검, 통신 장애). 그런 레코드까지 float() 변환하려다 예외가 나면
+    /api/temperature 요청 전체가 500으로 죽어서 화면이 통째로 안 뜨므로,
+    해당 레코드만 건너뛴다."""
     init_db()
     collected_at = datetime.now().isoformat(timespec="seconds")
-    rows = [
-        (
-            r["sta_cde"],
-            r.get("sta_nam_kor"),
-            region_map.get(r["sta_cde"]),
-            r["obs_lay"],
-            float(r["wtr_tmp"]),
-            f"{r['obs_dat']} {r['obs_tim']}",
-            collected_at,
+    rows = []
+    for r in records:
+        try:
+            wtr_tmp = float(r["wtr_tmp"])
+        except (TypeError, ValueError):
+            continue
+        rows.append(
+            (
+                r["sta_cde"],
+                r.get("sta_nam_kor"),
+                region_map.get(r["sta_cde"]),
+                r["obs_lay"],
+                wtr_tmp,
+                f"{r['obs_dat']} {r['obs_tim']}",
+                collected_at,
+            )
         )
-        for r in records
-    ]
     with get_connection() as conn:
         cursor = conn.executemany(
             """

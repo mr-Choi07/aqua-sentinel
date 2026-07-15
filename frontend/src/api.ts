@@ -20,6 +20,9 @@ export interface RiskResult {
   consecutive_days_alert: number;
   reason: string;
   region: string;
+  observed_at: string | null;
+  day_over_day_delta: number | null;
+  rising_streak_days: number;
 }
 
 export interface RedtideBulletin {

@@ -63,7 +63,7 @@ export default function MoreScreen({ risk, temperature, redtide, selectedStation
       </button>
 
       <h2 className="text-2xl font-extrabold" style={{ color: "var(--text-primary)" }}>
-        더 자세히 보기
+        수온·적조 자세히 보기
       </h2>
 
       <Section title="다른 어장 상황 보기" open={openSection === "risk"} onToggle={() => toggle("risk")}>

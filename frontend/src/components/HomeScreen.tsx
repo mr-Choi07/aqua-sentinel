@@ -1,6 +1,6 @@
-import { Bot, ChevronRight, FileText, MapPin, Search } from "lucide-react";
+import { ChevronRight, FileText, MapPin, MessageCircle, Waves } from "lucide-react";
 import type { RiskResult } from "../api";
-import { statusOf, statusSentence } from "../lib/status";
+import { coachButtonHint, formatObservedAt, statusOf, statusSentence, trendSentence } from "../lib/status";
 
 interface Props {
   selectedRisk: RiskResult | null;
@@ -14,16 +14,25 @@ function BigButton({
   icon: Icon,
   label,
   onClick,
+  hint,
+  accentColor,
 }: {
-  icon: typeof Bot;
+  icon: typeof MessageCircle;
   label: string;
   onClick: () => void;
+  hint?: { text: string; color: string } | null;
+  accentColor?: string;
 }) {
   return (
     <button
       onClick={onClick}
       className="tap-target flex w-full items-center gap-4 rounded-2xl px-6 py-5 text-left transition-transform active:scale-[0.98]"
-      style={{ background: "var(--surface)", boxShadow: "var(--shadow-md)", minHeight: 72 }}
+      style={{
+        background: "var(--surface)",
+        boxShadow: "var(--shadow-md)",
+        minHeight: 72,
+        borderLeft: accentColor ? `5px solid ${accentColor}` : "5px solid transparent",
+      }}
     >
       <div
         className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl"
@@ -31,8 +40,15 @@ function BigButton({
       >
         <Icon size={28} strokeWidth={2.5} />
       </div>
-      <span className="flex-1 text-xl font-bold" style={{ color: "var(--text-primary)" }}>
-        {label}
+      <span className="flex-1">
+        <span className="block text-xl font-bold" style={{ color: "var(--text-primary)" }}>
+          {label}
+        </span>
+        {hint && (
+          <span className="mt-0.5 block text-sm font-semibold" style={{ color: hint.color }}>
+            {hint.text}
+          </span>
+        )}
       </span>
       <ChevronRight size={26} style={{ color: "var(--text-muted)" }} />
     </button>
@@ -43,6 +59,13 @@ export default function HomeScreen({ selectedRisk, onOpenStationPicker, onGoCoac
   const level = selectedRisk?.level ?? "데이터 부족";
   const status = statusOf(level);
   const sentence = statusSentence(level, selectedRisk?.current_temp ?? null);
+  const trend = selectedRisk
+    ? trendSentence(selectedRisk.day_over_day_delta, selectedRisk.rising_streak_days)
+    : null;
+  const observedLabel = selectedRisk ? formatObservedAt(selectedRisk.observed_at) : null;
+
+  const hint = coachButtonHint(level);
+  const emphasizeCoach = level === "주의" || level === "경보";
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5 px-4 py-6">
@@ -63,7 +86,7 @@ export default function HomeScreen({ selectedRisk, onOpenStationPicker, onGoCoac
       </button>
 
       <div
-        className="flex flex-col items-center gap-3 rounded-3xl px-6 py-10 text-center"
+        className="flex flex-col items-center gap-2 rounded-3xl px-6 py-10 text-center"
         style={{ background: status.bg, minHeight: "40vh", justifyContent: "center" }}
       >
         <status.Icon size={88} strokeWidth={2} style={{ color: status.color }} />
@@ -73,12 +96,28 @@ export default function HomeScreen({ selectedRisk, onOpenStationPicker, onGoCoac
         <p className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
           {sentence}
         </p>
+        {trend && (
+          <p className="text-base font-bold" style={{ color: "var(--text-secondary)" }}>
+            {trend}
+          </p>
+        )}
+        {observedLabel && (
+          <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
+            {observedLabel}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-3">
-        <BigButton icon={Bot} label="무엇을 해야 하나요?" onClick={onGoCoach} />
+        <BigButton
+          icon={MessageCircle}
+          label="무엇을 해야 하나요?"
+          onClick={onGoCoach}
+          hint={hint}
+          accentColor={emphasizeCoach ? status.color : undefined}
+        />
         <BigButton icon={FileText} label="피해가 있어요" onClick={onGoReport} />
-        <BigButton icon={Search} label="더 자세히 보기" onClick={onGoMore} />
+        <BigButton icon={Waves} label="수온·적조 자세히 보기" onClick={onGoMore} />
       </div>
     </div>
   );
