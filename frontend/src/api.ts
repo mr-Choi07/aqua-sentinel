@@ -70,6 +70,46 @@ export const fetchRisk = (species: string) =>
 
 export const fetchRedtide = () => getJSON<RedtideBulletin[]>("/api/redtide");
 
+export interface NearestStationMatch {
+  sta_cde: string;
+  region: string;
+  distance_km: number;
+  far_match: boolean;
+}
+
+export interface Farm extends NearestStationMatch {
+  id: number;
+  name: string;
+  lat: number;
+  lon: number;
+  species: string;
+  stocking_info: string;
+  created_at: string;
+}
+
+async function postJSON<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`API 오류 (${res.status}): ${path}`);
+  return res.json();
+}
+
+export const fetchNearestStation = (lat: number, lon: number) =>
+  postJSON<NearestStationMatch>("/api/farms/nearest-station", { lat, lon });
+
+export const createFarm = (params: {
+  name: string;
+  lat: number;
+  lon: number;
+  species: string;
+  stocking_info: string;
+}) => postJSON<Farm>("/api/farms", params);
+
+export const fetchFarm = (id: number) => getJSON<Farm>(`/api/farms/${id}`);
+
 export const fetchVapidPublicKey = () => getJSON<{ key: string }>("/api/push/vapid-public-key");
 
 export async function subscribePush(params: {

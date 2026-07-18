@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Bell, BellRing, ChevronRight, FileText, MapPin, MessageCircle, Waves } from "lucide-react";
-import type { RiskResult } from "../api";
+import type { Farm, RiskResult } from "../api";
 import { coachButtonHint, formatObservedAt, statusOf, statusSentence, trendSentence } from "../lib/status";
 import { isPushSupported, subscribeToStationAlerts } from "../lib/push";
 
 interface Props {
   selectedRisk: RiskResult | null;
+  registeredFarm: Farm | null;
   onOpenStationPicker: () => void;
   onGoCoach: () => void;
   onGoReport: () => void;
@@ -57,7 +58,14 @@ function BigButton({
   );
 }
 
-export default function HomeScreen({ selectedRisk, onOpenStationPicker, onGoCoach, onGoReport, onGoMore }: Props) {
+export default function HomeScreen({
+  selectedRisk,
+  registeredFarm,
+  onOpenStationPicker,
+  onGoCoach,
+  onGoReport,
+  onGoMore,
+}: Props) {
   const level = selectedRisk?.level ?? "데이터 부족";
   const status = statusOf(level);
   const sentence = statusSentence(level, selectedRisk?.current_temp ?? null);
@@ -68,6 +76,13 @@ export default function HomeScreen({ selectedRisk, onOpenStationPicker, onGoCoac
 
   const hint = coachButtonHint(level);
   const emphasizeCoach = level === "주의" || level === "경보";
+
+  const isMyFarmStation = registeredFarm && selectedRisk && registeredFarm.sta_cde === selectedRisk.sta_cde;
+  const stationLabel = selectedRisk
+    ? isMyFarmStation
+      ? `${registeredFarm!.name} · ${selectedRisk.region}`
+      : selectedRisk.region
+    : "어장을 선택해주세요";
 
   const [subscribeState, setSubscribeState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
@@ -99,7 +114,7 @@ export default function HomeScreen({ selectedRisk, onOpenStationPicker, onGoCoac
         >
           <MapPin size={22} style={{ color: "var(--accent)" }} />
           <span className="flex-1 text-lg font-bold" style={{ color: "var(--text-primary)" }}>
-            {selectedRisk ? selectedRisk.region : "어장을 선택해주세요"}
+            {stationLabel}
           </span>
           <ChevronRight size={22} style={{ color: "var(--text-muted)" }} />
         </button>

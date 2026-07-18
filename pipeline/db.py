@@ -59,6 +59,22 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS farms (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                lat REAL NOT NULL,
+                lon REAL NOT NULL,
+                species TEXT NOT NULL,
+                stocking_info TEXT,
+                sta_cde TEXT NOT NULL,
+                distance_km REAL NOT NULL,
+                far_match INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
 
 
 def insert_readings(records: list[dict], region_map: dict[str, str]) -> int:
@@ -159,3 +175,53 @@ def update_push_subscription_level(endpoint: str, level: str) -> None:
     init_db()
     with get_connection() as conn:
         conn.execute("UPDATE push_subscriptions SET last_level = ? WHERE endpoint = ?", (level, endpoint))
+
+
+def create_farm(
+    name: str,
+    lat: float,
+    lon: float,
+    species: str,
+    stocking_info: str,
+    sta_cde: str,
+    distance_km: float,
+    far_match: bool,
+) -> int:
+    """어장을 등록하고 새로 생성된 id를 반환한다. 로그인 계정이 없으므로,
+    이 id를 프론트엔드가 localStorage에 기억해서 "내 어장"을 식별한다."""
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO farms (name, lat, lon, species, stocking_info, sta_cde, distance_km, far_match, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                name,
+                lat,
+                lon,
+                species,
+                stocking_info,
+                sta_cde,
+                distance_km,
+                1 if far_match else 0,
+                datetime.now().isoformat(timespec="seconds"),
+            ),
+        )
+        return cursor.lastrowid
+
+
+def get_farm(farm_id: int) -> dict | None:
+    init_db()
+    with get_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.execute("SELECT * FROM farms WHERE id = ?", (farm_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        farm = dict(row)
+        # SQLite에는 진짜 boolean이 없어 0/1 정수로 저장했다 — JSON으로 나갈 때는
+        # 프론트엔드가 {far_match && ...}로 조건 렌더링하므로 0이 그대로 나가면
+        # falsy이지만 "0"이라는 문자열이 화면에 찍히는 React 특유의 함정에 걸린다.
+        farm["far_match"] = bool(farm["far_match"])
+        return farm

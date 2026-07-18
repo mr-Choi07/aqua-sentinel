@@ -27,7 +27,8 @@ from pipeline.collect_kosha import TARGET_STATIONS, fetch_realtime_temperature
 from pipeline.collect_redtide import fetch_redtide_info, filter_target_region, is_region_affected
 from pipeline.damage_report import PhotoAnalysis, analyze_damage_photo, build_damage_report, detect_inconsistency
 from pipeline.damage_report_official import build_official_overlay
-from pipeline.db import insert_readings, save_push_subscription
+from pipeline.db import create_farm, get_farm, insert_readings, save_push_subscription
+from pipeline.farm import nearest_station
 from pipeline.push import get_vapid_public_key
 from pipeline.risk import SPECIES_THRESHOLDS, classify_all_stations
 
@@ -47,6 +48,53 @@ UPLOAD_DIR = Path(tempfile.gettempdir()) / "aqua_sentinel_uploads"
 @app.get("/api/species")
 def get_species() -> list[str]:
     return list(SPECIES_THRESHOLDS.keys())
+
+
+class NearestStationRequest(BaseModel):
+    lat: float
+    lon: float
+
+
+@app.post("/api/farms/nearest-station")
+def post_nearest_station(req: NearestStationRequest) -> dict:
+    return nearest_station(req.lat, req.lon)
+
+
+class FarmCreateRequest(BaseModel):
+    name: str
+    lat: float
+    lon: float
+    species: str = "일반(기본)"
+    stocking_info: str = ""
+
+
+@app.post("/api/farms")
+def post_create_farm(req: FarmCreateRequest) -> dict:
+    if req.species not in SPECIES_THRESHOLDS:
+        raise HTTPException(400, f"알 수 없는 어종입니다: {req.species}")
+    match = nearest_station(req.lat, req.lon)
+    farm_id = create_farm(
+        name=req.name,
+        lat=req.lat,
+        lon=req.lon,
+        species=req.species,
+        stocking_info=req.stocking_info,
+        sta_cde=match["sta_cde"],
+        distance_km=match["distance_km"],
+        far_match=match["far_match"],
+    )
+    farm = get_farm(farm_id)
+    farm["region"] = TARGET_STATIONS.get(farm["sta_cde"], "")
+    return farm
+
+
+@app.get("/api/farms/{farm_id}")
+def get_farm_by_id(farm_id: int) -> dict:
+    farm = get_farm(farm_id)
+    if not farm:
+        raise HTTPException(404, "등록된 어장을 찾을 수 없습니다.")
+    farm["region"] = TARGET_STATIONS.get(farm["sta_cde"], "")
+    return farm
 
 
 @app.get("/api/temperature")
